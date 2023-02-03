@@ -10,12 +10,20 @@ fn add_c_libraries(step: *std.build.LibExeObjStep) void {
         "src/modules/term/wcwidth/wcwidth.c",
     };
 
+    const c_include_paths = [_][]const u8{
+        "src/modules/term/wcwidth",
+    };
+
     const common_flags = [_][]const u8{
         "-std=c99",
     };
 
     for (c_source_files) |*c_source_file| {
         step.addCSourceFile(c_source_file.*, &common_flags);
+    }
+
+    for (c_include_paths) |*c_incude_path| {
+        step.addIncludePath(c_incude_path.*);
     }
 }
 

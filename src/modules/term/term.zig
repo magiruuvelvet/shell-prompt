@@ -9,9 +9,11 @@ const impl = switch (builtin.target.os.tag) {
     else => @compileError("unsupported platform"),
 };
 
+/// for `mk_wcwidth(ucs)`
 /// see `wcwidth/wcwidth.c`
-/// TODO: ABI portability of wchar_t type, may not be u32 everywhere
-extern fn mk_wcwidth(ucs: u32) c_int;
+const c = @cImport({
+    @cInclude("wcwidth.h");
+});
 
 /// get the terminal window size
 pub fn get_winsize() winsize {
@@ -38,7 +40,7 @@ pub fn wcwidth(str: []const u8) i32 {
 
     // count the width of each character
     while (utf8.nextCodepoint()) |codepoint| {
-        const wcw = mk_wcwidth(codepoint);
+        const wcw = c.mk_wcwidth(codepoint);
         if (wcw < 0) return -1;
         width += wcw;
     }
