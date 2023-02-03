@@ -10,7 +10,7 @@ pub fn run() !void {
 }
 
 fn test_get_winsize() !void {
-    runner.notify("test term.get_winsize");
+    runner.notify("term.get_winsize");
 
     const winsize = term.get_winsize();
 
@@ -25,7 +25,7 @@ fn test_get_winsize() !void {
 ///
 /// **DON'T "FIX" THESE TESTS, ON FAILURE THE `wcwidth` Zig BINDINGS ARE BROKEN!!**
 fn test_wcwidth_valid() !void {
-    runner.notify("test term.wcwidth_valid");
+    runner.notify("term.wcwidth_valid");
 
     var wcwidth = term.wcwidth("hello world");
     try testing.expect(wcwidth == 11);
@@ -50,7 +50,7 @@ fn test_wcwidth_valid() !void {
 ///
 /// **DON'T "FIX" THESE TESTS, ON FAILURE THE `wcwidth` Zig BINDINGS ARE BROKEN!!**
 fn test_wcwidth_invalid() !void {
-    runner.notify("test term.wcwidth_invalid");
+    runner.notify("term.wcwidth_invalid");
 
     // invalid utf-8
     var wcwidth = term.wcwidth("\x20\x21\x93");
