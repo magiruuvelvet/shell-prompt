@@ -1,4 +1,5 @@
 const std = @import("std");
+const unicode = std.unicode;
 const builtin = @import("builtin");
 const winsize = @import("winsize.zig").winsize;
 
@@ -8,7 +9,39 @@ const impl = switch (builtin.target.os.tag) {
     else => @compileError("unsupported platform"),
 };
 
+/// see `wcwidth/wcwidth.c`
+/// TODO: ABI portability of wchar_t type, may not be u32 everywhere
+extern fn mk_wcwidth(ucs: u32) c_int;
+
 /// get the terminal window size
 pub fn get_winsize() winsize {
     return impl.get_winsize();
+}
+
+/// get the total required width of the given character sequence
+/// input must be UTF-8 encoded
+///
+/// on success: returns the total required width of the character sequence
+/// on UTF-8 failure: returns -255
+/// on `wcwidth` failure: returns -1
+pub fn wcwidth(str: []const u8) i32 {
+    var width: i32 = 0;
+
+    // initialize a UTF-8 view on the given character sequence
+    var utf8: unicode.Utf8Iterator = undefined;
+    if (unicode.Utf8View.init(str)) |utf8view| {
+        utf8 = utf8view.iterator();
+    } else |_| {
+        // on UTF-8 errors, return -255
+        return -0xFF;
+    }
+
+    // count the width of each character
+    while (utf8.nextCodepoint()) |codepoint| {
+        const wcw = mk_wcwidth(codepoint);
+        if (wcw < 0) return -1;
+        width += wcw;
+    }
+
+    return width;
 }
