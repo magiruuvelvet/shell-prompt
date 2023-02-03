@@ -7,6 +7,8 @@ pub fn run() !void {
     try test_get_username();
     try test_get_hostname();
     try test_get_clock_time();
+    try test_get_pwd();
+    try test_get_directory_stats();
 }
 
 fn test_get_username() !void {
@@ -42,6 +44,35 @@ fn test_get_clock_time() !void {
     const time = os.time.get_clock_time();
     if (time) |t| {
         runner.print_diagnostics("clockTime: {s}", .{t});
+    } else |e| {
+        // abort test run on failure
+        return e;
+    }
+}
+
+fn test_get_pwd() !void {
+    runner.notify("os.get_pwd");
+
+    const cwd = os.dir.get_pwd() catch |err| {
+        return err;
+    };
+
+    try testing.expect(cwd.len > 0);
+
+    runner.print_diagnostics("pwd: {s}", .{cwd});
+}
+
+fn test_get_directory_stats() !void {
+    runner.notify("os.get_directory_stats");
+
+    const cwd = try os.dir.get_pwd();
+
+    const stats = os.dir.get_directory_stats(cwd);
+    if (stats) |s| {
+        // assume that at least the test binary exists in the working directory
+        try testing.expect(s.visible > 0);
+
+        runner.print_diagnostics("directoryStats: visible={}, hidden={}", .{s.visible, s.hidden});
     } else |e| {
         // abort test run on failure
         return e;

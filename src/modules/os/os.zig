@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+pub const dir = @import("dir.zig");
 pub const time = @import("time.zig");
 
 /// platform-specific implementations
