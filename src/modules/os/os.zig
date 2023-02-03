@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+pub const time = @import("time.zig");
+
 /// platform-specific implementations
 const impl = switch (builtin.target.os.tag) {
     .linux, .macos, .watchos, .tvos, .ios, .freebsd, .netbsd, .openbsd, .haiku, .solaris => @import("platform/posix.zig"),
