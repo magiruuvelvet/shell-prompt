@@ -18,3 +18,8 @@ pub fn get_username() []const u8 {
 pub fn get_user_display_name() []const u8 {
     return impl.get_user_display_name();
 }
+
+/// get the system hostname
+pub fn get_hostname() []const u8 {
+    return impl.get_hostname();
+}

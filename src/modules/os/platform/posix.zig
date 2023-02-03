@@ -1,4 +1,5 @@
 const std = @import("std");
+const os = std.os;
 
 const c = @cImport({
     @cInclude("pwd.h");
@@ -119,5 +120,21 @@ pub fn get_user_display_name() []const u8 {
             truncate_garbage(&cache.pw_gecos);
             return cache.pw_gecos;
         }
+    }
+}
+
+pub fn get_hostname() []const u8 {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    //defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    if (allocator.create([os.HOST_NAME_MAX]u8)) |name_buffer| {
+        const uts = os.uname();
+        const hostname = std.mem.sliceTo(std.meta.assumeSentinel(&uts.nodename, 0), 0);
+        std.mem.copy(u8, name_buffer, hostname);
+        return name_buffer[0..hostname.len];
+    } else |_| {
+        return "";
     }
 }
