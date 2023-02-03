@@ -15,6 +15,8 @@ a work-in-progress Zig implementation of a [magiruuvelvet/fish-shell-config](htt
 
 ## Building
 
+You need the latest tagged release of the Zig compiler (0.10.1). The master branch of the compiler is not supported.
+
  - run `zig build`
  - binaries can be found in the `zig-out/bin/` directory
 

@@ -5,6 +5,14 @@ const Builder = std.build.Builder;
 var target: CrossTarget = undefined;
 var mode: std.builtin.Mode = undefined;
 
+/// adds a new external dependency to the build step
+fn add_dependency(step: *std.build.LibExeObjStep, name: []const u8, root_source: []const u8) void {
+    step.addPackage(.{
+        .name = name,
+        .source = .{ .path = root_source },
+    });
+}
+
 fn add_c_libraries(step: *std.build.LibExeObjStep) void {
     const c_source_files = [_][]const u8{
         "src/modules/term/wcwidth/wcwidth.c",
@@ -37,6 +45,7 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     exe.linkSystemLibrary("git2");
 
     add_c_libraries(exe);
+    add_dependency(exe, "clap", "libs/zig-clap/clap.zig");
 
     exe.install();
     return exe;
@@ -53,7 +62,7 @@ fn build_unit_tests(b: *Builder) *std.build.LibExeObjStep {
 
     unit_tests.addPackage(.{
         .name = "modules",
-        .source = .{ .path = "src/modules/modules.zig" }
+        .source = .{ .path = "src/modules/modules.zig" },
     });
 
     add_c_libraries(unit_tests);
