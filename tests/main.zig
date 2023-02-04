@@ -10,5 +10,7 @@ pub fn main() !void {
     try @import("modules/os.zig").run();
     try @import("modules/git.zig").run();
 
+    try @import("prompt/renderer.zig").run();
+
     runner.print("{} tests executed.", .{runner.get_test_counter()});
 }

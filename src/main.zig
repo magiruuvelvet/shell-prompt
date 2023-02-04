@@ -29,6 +29,7 @@ pub fn main() u8 {
     if (res.args.help)
     {
         print("{s}\n", .{params});
+        //clap.usage(std.io.getStdOut().writer(), clap.Help, &cmd_params) catch unreachable;
         return 0;
     }
 

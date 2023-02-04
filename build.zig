@@ -5,6 +5,37 @@ const Builder = std.build.Builder;
 var target: CrossTarget = undefined;
 var mode: std.builtin.Mode = undefined;
 
+const pkgs = struct {
+    /// modules to collect data for the shell prompt
+    /// contains operating system abstractions and other useful plugins
+    ///
+    /// the use of C code is allowed in this package
+    const modules = std.build.Pkg{
+        .name = "modules",
+        .source = .{ .path = "src/modules/modules.zig" },
+    };
+
+    /// general purpose utilities
+    ///
+    /// avoid using C, pure Zig package
+    const utils = std.build.Pkg{
+        .name = "utils",
+        .source = .{ .path = "src/utils/package.zig" },
+    };
+
+    /// shell prompt package
+    ///
+    /// avoid using C, pure Zig package
+    const prompt = std.build.Pkg{
+        .name = "prompt",
+        .source = .{ .path = "src/prompt/package.zig" },
+        .dependencies = &[_]std.build.Pkg{
+            utils,
+            modules,
+        },
+    };
+};
+
 /// adds a new external dependency to the build step
 fn add_dependency(step: *std.build.LibExeObjStep, name: []const u8, root_source: []const u8) void {
     step.addPackage(.{
@@ -47,6 +78,10 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     add_c_libraries(exe);
     add_dependency(exe, "clap", "libs/zig-clap/clap.zig");
 
+    exe.addPackage(pkgs.modules);
+    exe.addPackage(pkgs.prompt);
+    exe.addPackage(pkgs.utils);
+
     exe.install();
     return exe;
 }
@@ -60,10 +95,9 @@ fn build_unit_tests(b: *Builder) *std.build.LibExeObjStep {
     unit_tests.linkLibC();
     unit_tests.linkSystemLibrary("git2");
 
-    unit_tests.addPackage(.{
-        .name = "modules",
-        .source = .{ .path = "src/modules/modules.zig" },
-    });
+    unit_tests.addPackage(pkgs.modules);
+    unit_tests.addPackage(pkgs.prompt);
+    unit_tests.addPackage(pkgs.utils);
 
     add_c_libraries(unit_tests);
 

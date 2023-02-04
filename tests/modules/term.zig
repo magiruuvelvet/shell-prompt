@@ -44,6 +44,14 @@ fn test_wcwidth_valid() !void {
 
     wcwidth = term.wcwidth("한국어");
     try testing.expect(wcwidth == 6);
+
+    // BOX DRAWINGS LIGHT HORIZONTAL (U+2500)
+    wcwidth = term.wcwidth("─");
+    try testing.expect(wcwidth == 1);
+
+    // FULLWIDTH LOW LINE (U+FF3F)
+    wcwidth = term.wcwidth("＿");
+    try testing.expect(wcwidth == 2);
 }
 
 /// test broken input
