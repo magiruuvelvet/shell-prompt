@@ -55,10 +55,17 @@ pub const mode = enum(u1) {
 //     }
 // };
 
-inline fn rgb_ascii(r: u8, g: u8, b: u8, comptime m: mode) []const u8 {
+pub inline fn rgb_ascii(r: u8, g: u8, b: u8, comptime m: mode) []const u8 {
     return switch(m) {
         .foreground => return fmt.allocPrint(std.heap.page_allocator, "\x1b[38;2;{};{};{}m", .{r, g, b}) catch "",
         .background => return fmt.allocPrint(std.heap.page_allocator, "\x1b[48;2;{};{};{}m", .{r, g, b}) catch "",
+    };
+}
+
+pub inline fn rgb_ascii_text(rgb_code: []const u8, comptime m: mode) []const u8 {
+    return switch(m) {
+        .foreground => return fmt.allocPrint(std.heap.page_allocator, "\x1b[38;2;{s}m", .{rgb_code}) catch "",
+        .background => return fmt.allocPrint(std.heap.page_allocator, "\x1b[48;2;{s}m", .{rgb_code}) catch "",
     };
 }
 
@@ -67,14 +74,29 @@ pub inline fn rgb(text: []const u8, r: u8, g: u8, b: u8, comptime m: mode) []con
         "{s}{s}{s}", .{rgb_ascii(r, g, b, m), text, ascii.normal}) catch text;
 }
 
+pub inline fn rgb_text(text: []const u8, rgb_code: []const u8, comptime m: mode) []const u8 {
+    return fmt.allocPrint(std.heap.page_allocator,
+        "{s}{s}{s}", .{rgb_ascii_text(rgb_code, m), text, ascii.normal}) catch text;
+}
+
 pub inline fn rgb_bold(text: []const u8, r: u8, g: u8, b: u8, comptime m: mode) []const u8 {
     return fmt.allocPrint(std.heap.page_allocator,
         "{s}{s}{s}{s}", .{ascii.bold, rgb_ascii(r, g, b, m), text, ascii.normal}) catch text;
 }
 
+pub inline fn rgb_bold_text(text: []const u8, rgb_code: []const u8, comptime m: mode) []const u8 {
+    return fmt.allocPrint(std.heap.page_allocator,
+        "{s}{s}{s}{s}", .{ascii.bold, rgb_ascii_text(rgb_code, m), text, ascii.normal}) catch text;
+}
+
 pub inline fn rgb_italic(text: []const u8, r: u8, g: u8, b: u8, comptime m: mode) []const u8 {
     return fmt.allocPrint(std.heap.page_allocator,
         "{s}{s}{s}{s}", .{ascii.italic, rgb_ascii(r, g, b, m), text, ascii.normal}) catch text;
+}
+
+pub inline fn rgb_italic_text(text: []const u8, rgb_code: []const u8, comptime m: mode) []const u8 {
+    return fmt.allocPrint(std.heap.page_allocator,
+        "{s}{s}{s}{s}", .{ascii.italic, rgb_ascii_text(rgb_code, m), text, ascii.normal}) catch text;
 }
 
 pub inline fn bold(text: []const u8) []const u8 {
