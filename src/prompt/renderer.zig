@@ -2,7 +2,7 @@ const std = @import("std");
 const modules = @import("modules");
 const print = @import("utils").print;
 
-const wcwidth = modules.term.wcwidth;
+const wcwidth_ascii = modules.term.wcwidth_ascii;
 
 /// draws a line to the terminal with the given length and flushes the output
 /// the character which should be drawn can be specified
@@ -14,7 +14,7 @@ const wcwidth = modules.term.wcwidth;
 /// column counter doesn't match the requested length
 pub fn draw_line(char: []const u8, length: u16) u16 {
     // get width of character to draw
-    const char_width = wcwidth(char);
+    const char_width = wcwidth_ascii(char);
 
     var i: u16 = 0;
 
@@ -47,7 +47,7 @@ pub fn new_line() void {
 /// returns the occupied terminal columns
 /// this function doesn't support new lines, use `new_line()` instead
 pub fn draw_text(text: []const u8) u16 {
-    const width = wcwidth(text);
+    const width = wcwidth_ascii(text);
 
     if (width > 0)
     {
