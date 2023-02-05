@@ -1,12 +1,14 @@
 const std = @import("std");
 const testing = std.testing;
 const term = @import("modules").term;
+const color = term.color;
 const runner = @import("../runner.zig");
 
 pub fn run() !void {
     try test_get_winsize();
     try test_wcwidth_valid();
     try test_wcwidth_invalid();
+    try test_color();
 }
 
 fn test_get_winsize() !void {
@@ -63,4 +65,29 @@ fn test_wcwidth_invalid() !void {
     // invalid utf-8
     var wcwidth = term.wcwidth("\x20\x21\x93");
     try testing.expect(wcwidth == -0xFF);
+
+    // ESC sequence
+    wcwidth = term.wcwidth("\x1b1m");
+    try testing.expect(wcwidth == -1);
+}
+
+fn test_color() !void {
+    runner.notify("term.color");
+
+    runner.print_diagnostics("{s}", .{color.bold("this is bold")});
+    runner.print_diagnostics("{s}", .{color.italic("this is italic")});
+
+    runner.print_diagnostics("{s}", .{color.rgb_bold("this is bold and red (#cd0000)", 205, 0, 0, color.mode.foreground)});
+    runner.print_diagnostics("{s}", .{color.rgb_italic("this is italic and blue (#1383a5)", 20, 131, 165, color.mode.foreground)});
+    runner.print_diagnostics("{s}", .{color.rgb("this is green", 15, 154, 20, color.mode.foreground)});
+
+    runner.print_diagnostics("{s}", .{color.rgb("this has gray background", 211, 211, 211, color.mode.background)});
+
+    // var chain = color.chain.init()
+    //     .text("normal text ")
+    //     .bold().text("bold text").normal()
+    //     .text(" ")
+    //     .italic().text("italic text").normal();
+
+    // runner.print_diagnostics("{s}", .{chain});
 }

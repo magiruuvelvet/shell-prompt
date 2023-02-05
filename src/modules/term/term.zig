@@ -1,7 +1,9 @@
 const std = @import("std");
 const unicode = std.unicode;
 const builtin = @import("builtin");
-const winsize = @import("winsize.zig").winsize;
+
+pub const winsize = @import("winsize.zig").winsize;
+pub const color = @import("color.zig");
 
 /// platform-specific implementations
 const impl = switch (builtin.target.os.tag) {
