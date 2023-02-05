@@ -5,9 +5,11 @@ const runner = @import("../runner.zig");
 
 pub fn run() !void {
     try test_get_username();
+    try test_get_home_directory();
     try test_get_hostname();
     try test_get_clock_time();
     try test_get_pwd();
+    try test_get_pwd_home_tilde();
     try test_get_directory_stats();
 }
 
@@ -24,6 +26,19 @@ fn test_get_username() !void {
 
     // the display name may not be set on all platforms, as it is optional
     runner.print_diagnostics("displayName: {s}", .{os.get_user_display_name()});
+}
+
+fn test_get_home_directory() !void {
+    runner.notify("os.get_home_directory");
+
+    const home_directory = os.get_home_directory();
+    if (home_directory) |home| {
+        try testing.expect(home.len > 0);
+
+        runner.print_diagnostics("homeDirectory: {s}", .{home});
+    } else {
+        return error.FailedToGetHomeDirectory;
+    }
 }
 
 fn test_get_hostname() !void {
@@ -58,6 +73,22 @@ fn test_get_pwd() !void {
     };
 
     try testing.expect(cwd.len > 0);
+
+    runner.print_diagnostics("pwd: {s}", .{cwd});
+}
+
+fn test_get_pwd_home_tilde() !void {
+    runner.notify("os.get_pwd_home_tilde");
+
+    const cwd = os.dir.get_pwd_home_tilde() catch |err| {
+        return err;
+    };
+
+    _ = os.dir.get_pwd_home_tilde() catch |err| {
+        return err;
+    };
+
+    //try testing.expectStringStartsWith(cwd, "~");
 
     runner.print_diagnostics("pwd: {s}", .{cwd});
 }

@@ -20,6 +20,11 @@ pub fn get_user_display_name() []const u8 {
     return impl.get_user_display_name();
 }
 
+/// get the user's home directory
+pub fn get_home_directory() ?[]const u8 {
+    return impl.get_home_directory();
+}
+
 /// get the system hostname
 pub fn get_hostname() []const u8 {
     return impl.get_hostname();

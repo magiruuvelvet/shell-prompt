@@ -1,5 +1,6 @@
 const std = @import("std");
 const fs = std.fs;
+const get_home_directory = @import("os.zig").get_home_directory;
 
 pub const DirStats = struct {
     /// visible files (no dot prefix)
@@ -51,5 +52,24 @@ pub fn get_pwd() std.os.GetCwdError![]const u8 {
         return std.os.getcwd(pwd_buffer);
     } else |_| {
         return std.os.GetCwdError.Unexpected;
+    }
+}
+
+/// get the process working directory
+/// with the user's home directory replaced with a tilde (~) symbol
+pub fn get_pwd_home_tilde() std.os.GetCwdError![]const u8 {
+    const pwd = try get_pwd();
+    const home_dir = get_home_directory();
+
+    if (home_dir) |home| {
+        if (std.mem.startsWith(u8, pwd, home)) {
+            return std.mem.concat(std.heap.page_allocator, u8, &[_][]const u8{"~", pwd[home.len..]}) catch {
+                return pwd;
+            };
+        } else {
+            return pwd;
+        }
+    } else {
+        return pwd;
     }
 }

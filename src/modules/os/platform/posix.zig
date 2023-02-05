@@ -11,6 +11,7 @@ const passwd_cache = struct {
     passwd: [*c]c.struct_passwd = null,
     pw_name: []u8 = "",
     pw_gecos: []u8 = "",
+    pw_dir: ?[]u8 = null,
 };
 
 /// global state cache for passwd
@@ -119,6 +120,21 @@ pub fn get_user_display_name() []const u8 {
             cache.pw_gecos = std.mem.span(passwd.*.pw_gecos);
             truncate_garbage(&cache.pw_gecos);
             return cache.pw_gecos;
+        }
+    }
+}
+
+pub fn get_home_directory() ?[]const u8 {
+    const passwd = get_passwd();
+
+    if (passwd == null) {
+        return null;
+    } else {
+        if (cache.pw_dir) |pw_dir| {
+            return pw_dir;
+        } else {
+            cache.pw_dir = std.mem.span(passwd.*.pw_dir);
+            return cache.pw_dir;
         }
     }
 }
