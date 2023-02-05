@@ -4,6 +4,7 @@ const os = @import("modules").os;
 const runner = @import("../runner.zig");
 
 pub fn run() !void {
+    try test_get_uid();
     try test_get_username();
     try test_get_home_directory();
     try test_get_hostname();
@@ -11,6 +12,12 @@ pub fn run() !void {
     try test_get_pwd();
     try test_get_pwd_home_tilde();
     try test_get_directory_stats();
+}
+
+fn test_get_uid() !void {
+    runner.notify("os.get_uid");
+
+    runner.print_diagnostics("uid: {}", .{os.get_uid()});
 }
 
 fn test_get_username() !void {

@@ -10,6 +10,11 @@ const impl = switch (builtin.target.os.tag) {
     else => @compileError("unsupported platform"),
 };
 
+/// get the user id
+pub fn get_uid() u32 {
+    return impl.get_uid();
+}
+
 /// get the username of the current user
 pub fn get_username() []const u8 {
     return impl.get_username();

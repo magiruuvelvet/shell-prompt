@@ -93,6 +93,10 @@ test "truncate_garbage" {
     try testing.expectEqualStrings("ユーザー名", unicode_string_with_trailing_comma.buffer);
 }
 
+pub fn get_uid() u32 {
+    return c.getuid();
+}
+
 pub fn get_username() []const u8 {
     const passwd = get_passwd();
 
