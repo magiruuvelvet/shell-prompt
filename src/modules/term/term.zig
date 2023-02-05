@@ -104,7 +104,7 @@ pub fn filter_ascii_escape_sequences(str: []const u8) FilterAsciiEscapeSequenceE
         // find end of ESC sequence character (m)
         if (in_sequence)
         {
-            // code back here until we find the end of the sequence
+            // come back here until we find the end of the sequence
             if (std.mem.eql(u8, codepoint, "m"))
             {
                 // found end; allow appending characters to the filtered string again
