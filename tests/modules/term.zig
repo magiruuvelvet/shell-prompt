@@ -9,6 +9,7 @@ pub fn run() !void {
     try test_wcwidth_valid();
     try test_wcwidth_invalid();
     try test_color();
+    try test_filter_ascii_escape_sequences();
 }
 
 fn test_get_winsize() !void {
@@ -90,4 +91,17 @@ fn test_color() !void {
     //     .italic().text("italic text").normal();
 
     // runner.print_diagnostics("{s}", .{chain});
+}
+
+fn test_filter_ascii_escape_sequences() !void {
+    runner.notify("term.filter_ascii_escape_sequences");
+
+    var filtered = try term.filter_ascii_escape_sequences("string\x1b[1m more data \x1b[38;2m end");
+    try testing.expectEqualStrings("string more data  end", filtered);
+
+    filtered = try term.filter_ascii_escape_sequences("[マギルゥーベルベット@\x1b[1m\x1b[38;2;177;50;28mmagiruuvelvet-workstation\x1b[0m]");
+    try testing.expectEqualStrings("[マギルゥーベルベット@magiruuvelvet-workstation]", filtered);
+
+    filtered = try term.filter_ascii_escape_sequences("[\x1b[1m\x1b[38;2;86;86;86m時間19:34:53\x1b[0m]");
+    try testing.expectEqualStrings("[時間19:34:53]", filtered);
 }

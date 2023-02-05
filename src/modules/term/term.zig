@@ -59,22 +59,44 @@ pub fn wcwidth(str: []const u8) i32 {
 /// on UTF-8 failure: returns -255
 /// on `wcwidth` failure: returns -1
 pub fn wcwidth_ascii(str: []const u8) i32 {
-    return wcwidth(filter_ascii_escape_sequences(str));
+    return wcwidth(filter_ascii_escape_sequences(str) catch str);
 }
 
+pub const FilterAsciiEscapeSequenceError = error {
+    // invalid data in string
+    InvalidEscapeSequenceFound,
+    InvalidUtf8,
+
+    // string memory allocation
+    OutOfMemory,
+    InvalidRange,
+};
+
 /// filters ASCII escape sequences from the given string
-pub fn filter_ascii_escape_sequences(str: []const u8) error{InvalidEscapeSequenceFound,InvalidUtf8,OutOfMemory}![]const u8 {
-    const allocator = std.heap.page_allocator;
+/// input must be UTF-8 encoded
+pub fn filter_ascii_escape_sequences(str: []const u8) FilterAsciiEscapeSequenceError![]const u8 {
+    const String = @import("zig-string").String;
 
-    const memory = try allocator.alloc(u8, str.len);
-    //defer allocator.free(memory);
+    // allocate enough memory for the filtered string
+    var filtered = String.init(std.heap.page_allocator);
+    try filtered.allocate(str.len);
 
-    var i: usize = 0;
-    var pos: usize = 0;
+    // initialize a UTF-8 view on the given character sequence
+    var utf8: unicode.Utf8Iterator = undefined;
+    if (unicode.Utf8View.init(str)) |utf8view| {
+        utf8 = utf8view.iterator();
+    } else |_| {
+        // on UTF-8 errors, return
+        return error.InvalidUtf8;
+    }
+
+    // tracker variable to check if we are inside an ESC sequence
     var in_sequence: bool = false;
-    while (i < str.len) : (i += 1) {
+
+    // process each UTF-8 character individually
+    while (utf8.nextCodepointSlice()) |codepoint| {
         // check if the current character is an ESC character
-        if (str[pos] == "\x1b"[0])
+        if (std.mem.eql(u8, codepoint, "\x1b"))
         {
             in_sequence = true;
         }
@@ -82,23 +104,25 @@ pub fn filter_ascii_escape_sequences(str: []const u8) error{InvalidEscapeSequenc
         // find end of ESC sequence character (m)
         if (in_sequence)
         {
-            if (std.mem.indexOf(u8, str[pos..], "m")) |end| {
-                pos += end + 1;
+            // code back here until we find the end of the sequence
+            if (std.mem.eql(u8, codepoint, "m"))
+            {
+                // found end; allow appending characters to the filtered string again
                 in_sequence = false;
-            } else {
-                // found start, but no end [abort and return error]
-                return error.InvalidEscapeSequenceFound;
+                continue;
+            }
+            else
+            {
+                // ignore this character
+                continue;
             }
         }
 
-        memory[i] = str[pos];
-        pos += 1;
-
-        if (pos >= str.len)
-        {
-            break;
-        }
+        // append visible characters to the filtered string
+        try filtered.concat(codepoint);
     }
 
-    return memory[0..i+1];
+    // truncate the filtered string to the actual content
+    try filtered.truncate();
+    return filtered.buffer.?;
 }

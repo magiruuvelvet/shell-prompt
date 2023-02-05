@@ -5,6 +5,13 @@ const Builder = std.build.Builder;
 var target: CrossTarget = undefined;
 var mode: std.builtin.Mode = undefined;
 
+const deps = struct {
+    const zig_string = std.build.Pkg{
+        .name = "zig-string",
+        .source = .{ .path = "libs/zig-string/zig-string.zig" },
+    };
+};
+
 const pkgs = struct {
     /// modules to collect data for the shell prompt
     /// contains operating system abstractions and other useful plugins
@@ -13,6 +20,9 @@ const pkgs = struct {
     const modules = std.build.Pkg{
         .name = "modules",
         .source = .{ .path = "src/modules/modules.zig" },
+        .dependencies = &[_]std.build.Pkg{
+            deps.zig_string,
+        },
     };
 
     /// general purpose utilities
