@@ -57,3 +57,13 @@ pub fn draw_text(text: []const u8) u16 {
 
     return 0;
 }
+
+/// draws the given text to the terminal and flushes the output
+/// using this function doesn't invoke `wcwidth_ascii()`
+///
+/// use this function when:
+///  - the width is already known to avoid duplicate calculations
+///  - the width isn't relevant
+pub fn draw_text_with_known_width(text: []const u8) void {
+    print.write_and_flush(text);
+}
