@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 
 pub const dir = @import("dir.zig");
 pub const time = @import("time.zig");
+pub const signals = @import("signals.zig");
 
 /// platform-specific implementations
 const impl = switch (builtin.target.os.tag) {
