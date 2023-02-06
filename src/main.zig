@@ -4,10 +4,14 @@ const clap = @import("clap");
 const print = @import("utils/print.zig").print;
 const Prompt = @import("prompt/prompt.zig").Prompt;
 
+const winsize = @import("modules").term.winsize;
+
 const params =
     \\-h, --help                   Display this help and exit.
     \\--last-exit-status <u8>      Pass the last exit status to the shell prompt.
     \\--hostname-color <str>       Color of the system hostname.
+    \\--columns <u16>              The number of available columns. (overrides autodetect)
+    \\--lines <u16>                The number of available lines. (overrides autodetect)
 ;
 
 pub fn main() u8 {
@@ -43,8 +47,20 @@ pub fn main() u8 {
     const last_exit_status: u8 = res.args.@"last-exit-status" orelse 0;
     const hostname_color: ?[]const u8 = res.args.@"hostname-color";
 
+    const winsize_columns: ?u16 = res.args.columns;
+    const winsize_lines: ?u16 = res.args.lines;
+    const winsize_override: ?winsize = if (winsize_columns != null and winsize_lines != null) blk: {
+        break :blk winsize{
+            .columns = winsize_columns.?,
+            .lines = winsize_lines.?,
+        };
+    } else null;
+
     var prompt = Prompt.init(last_exit_status);
     prompt.hostname_color = hostname_color;
+    if (winsize_override) |w| {
+        prompt.winsize = w;
+    }
     prompt.render() catch |err| {
         print("{}\n", .{err});
         return 255;
