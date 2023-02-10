@@ -22,6 +22,12 @@ pub const GitRepositoryError = error {
     OpenError,
 };
 
+/// the maximum possible length of the formatted commit hash
+pub const HashMaxLength = struct {
+    const SHA1: usize = 40;
+    const SHA256: usize = 64;
+};
+
 pub const GitRepository = struct {
     /// raw pointer to libgit2 repository struct
     ptr: ?*c.git_repository = null,
@@ -107,6 +113,10 @@ pub const GitRepository = struct {
         return c.git_repository_head_detached(self.ptr) == 1;
     }
 
+    /// receive the current commit hash of the repository
+    /// the length of the hash can be specified in the `length` parameter
+    /// the maximum possible length depends on the repository hashing type
+    /// see `HashMaxLength`
     pub fn current_commit_hash(self: *const GitRepository, length: usize) []const u8 {
         if (self.ref == null) {
             return "";
@@ -119,7 +129,7 @@ pub const GitRepository = struct {
                 return "";
             }
 
-            const hash: []u8 = std.heap.page_allocator.alloc(u8, 64) catch unreachable;
+            const hash: []u8 = std.heap.page_allocator.alloc(u8, HashMaxLength.SHA256) catch unreachable;
             if (c.git_oid_fmt(hash.ptr, oid) == 0) {
                 return hash[0..length];
             }
@@ -128,6 +138,9 @@ pub const GitRepository = struct {
         return "";
     }
 
+    /// receive the current branch name of the repository
+    /// if the current HEAD reference doesn't point to a branch name,
+    /// it returns the first 8 characters of the commit hash instead
     pub fn current_branch_name(self: *const GitRepository) []const u8 {
         if (self.ref == null) {
             return "";
@@ -145,6 +158,7 @@ pub const GitRepository = struct {
             }
         }
 
+        // return the first 8 characters of the commit hash when the current ref has no branch name
         return self.current_commit_hash(8);
     }
 };
