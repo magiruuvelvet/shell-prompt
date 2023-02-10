@@ -2,6 +2,7 @@ const std = @import("std");
 const clap = @import("zig-clap");
 
 const print = @import("utils/print.zig").print;
+const printError = @import("utils/print.zig").err;
 const Prompt = @import("prompt/prompt.zig").Prompt;
 
 const winsize = @import("modules").term.winsize;
@@ -62,7 +63,7 @@ pub fn main() u8 {
         prompt.winsize = w;
     }
     prompt.render() catch |err| {
-        print("{}\n", .{err});
+        printError("{}\n", .{err});
         return 255;
     };
 
