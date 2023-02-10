@@ -96,6 +96,19 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     return exe;
 }
 
+/// Build the additional tools.
+fn build_tools(b: *Builder) void {
+    const gitRepoInfo = b.addExecutable("git-repo-info", "src/tools/git-repo-info.zig");
+    gitRepoInfo.setTarget(target);
+    gitRepoInfo.setBuildMode(mode);
+    gitRepoInfo.linkLibC();
+    gitRepoInfo.linkSystemLibrary("git2");
+    gitRepoInfo.addPackage(pkgs.modules); // for the git module
+    gitRepoInfo.addPackage(pkgs.utils);
+    gitRepoInfo.addPackage(deps.zig_clap);
+    gitRepoInfo.install();
+}
+
 /// Build the unit tests.
 fn build_unit_tests(b: *Builder) *std.build.LibExeObjStep {
     const unit_tests = b.addExecutable("shell-prompt-tests", "tests/main.zig");
@@ -128,6 +141,8 @@ pub fn build(b: *Builder) void {
 
     _ = build_shell_prompt(b);
     _ = build_unit_tests(b);
+
+    build_tools(b);
 
     // internal tests are not relevant for library usage, but are still necessary
     // to validate correct function of platform-specific helper code within the code base
