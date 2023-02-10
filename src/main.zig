@@ -1,5 +1,5 @@
 const std = @import("std");
-const clap = @import("clap");
+const clap = @import("zig-clap");
 
 const print = @import("utils/print.zig").print;
 const Prompt = @import("prompt/prompt.zig").Prompt;

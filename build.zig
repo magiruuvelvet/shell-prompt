@@ -6,9 +6,16 @@ var target: CrossTarget = undefined;
 var mode: std.builtin.Mode = undefined;
 
 const deps = struct {
+    /// https://github.com/JakubSzark/zig-string
     const zig_string = std.build.Pkg{
         .name = "zig-string",
         .source = .{ .path = "libs/zig-string/zig-string.zig" },
+    };
+
+    /// https://github.com/Hejsil/zig-clap
+    const zig_clap = std.build.Pkg{
+        .name = "zig-clap",
+        .source = .{ .path = "libs/zig-clap/clap.zig" },
     };
 };
 
@@ -46,14 +53,6 @@ const pkgs = struct {
     };
 };
 
-/// adds a new external dependency to the build step
-fn add_dependency(step: *std.build.LibExeObjStep, name: []const u8, root_source: []const u8) void {
-    step.addPackage(.{
-        .name = name,
-        .source = .{ .path = root_source },
-    });
-}
-
 fn add_c_libraries(step: *std.build.LibExeObjStep) void {
     const c_source_files = [_][]const u8{
         "src/modules/term/wcwidth/wcwidth.c",
@@ -86,11 +85,12 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     exe.linkSystemLibrary("git2");
 
     add_c_libraries(exe);
-    add_dependency(exe, "clap", "libs/zig-clap/clap.zig");
 
     exe.addPackage(pkgs.modules);
     exe.addPackage(pkgs.prompt);
     exe.addPackage(pkgs.utils);
+
+    exe.addPackage(deps.zig_clap);
 
     exe.install();
     return exe;
