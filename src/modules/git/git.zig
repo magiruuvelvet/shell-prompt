@@ -40,6 +40,7 @@ pub const GitRepositoryChanges = struct {
     stashed: u64 = 0,
 
     /// number of files with merge conflicts
+    /// this number also includes "deleted" files with conflicts
     conflicts: u64 = 0,
 };
 
@@ -51,6 +52,23 @@ pub const GitRepositoryStatus = struct {
     /// is the repository considered clean?
     /// meaning: no modified files, no deleted files
     clean: bool = false,
+};
+
+/// a struct keeping track of remote tracking branch differences
+pub const GitRepositoryRemoteDifferences = struct {
+    /// number of commits ahead the remote tracking branch
+    /// meaning: commits which can be pushed to the remote
+    commits_ahead: u64 = 0,
+
+    /// number of commits behind the remote tracking branch
+    /// meaning: commits which can be pulled from the remote
+    commits_behind: u64 = 0,
+
+    /// the repository history is diverged when it has commits ahead and behind at the same time
+    /// meaning: it has commits which can be pushed and pulled, a rebase is necessary in that case
+    pub fn diverged_history(self: *const GitRepositoryRemoteDifferences) bool {
+        return self.commits_ahead != 0 and self.commits_behind != 0;
+    }
 };
 
 /// the maximum possible length of the formatted commit hash
@@ -220,6 +238,10 @@ pub const GitRepository = struct {
 
     /// get the status of the git repository
     pub fn get_status(self: *const GitRepository) ?GitRepositoryStatus {
+        if (self.is_bare()) {
+            return null;
+        }
+
         const changes = self.count_changes();
         const clean = if (changes) |ch| blk: {
             break :blk ch.modified == 0 and ch.deleted == 0;
@@ -315,5 +337,46 @@ pub const GitRepository = struct {
         changes.stashed += 1;
 
         return 0;
+    }
+
+    /// receive differences between the local branch and the remote tracking branch
+    /// if the current branch doesn't have a remote tracking branch, `null` is returned
+    /// this function also returns `null` when the repository doesn't have any remotes at all
+    pub fn get_remote_differences(self: *const GitRepository) ?GitRepositoryRemoteDifferences {
+        // detached HEAD or bare doesn't have a remote tracking branch
+        if (self.is_detached() or self.is_bare()) {
+            return null;
+        }
+
+        // find the matching remote tracking branch for the current local branch
+        var upstream_ref: ?*c.git_reference = null;
+        if (c.git_branch_upstream(&upstream_ref, self.ref) != 0) {
+            return null;
+        }
+        defer c.git_reference_free(upstream_ref);
+
+        // get git_oid object of the current branch
+        const local_oid = c.git_reference_target(self.ref);
+        if (local_oid == null) {
+            return null;
+        }
+
+        // get git_oid object of the remote tracking branch
+        const upstream_oid = c.git_reference_target(upstream_ref);
+        if (upstream_oid == null) {
+            return null;
+        }
+
+        // get the difference between the local branch and the remote tracking branch
+        var ahead: usize = 0;
+        var behind: usize = 0;
+        if (c.git_graph_ahead_behind(&ahead, &behind, self.ptr, local_oid, upstream_oid) != 0) {
+            return null;
+        }
+
+        return GitRepositoryRemoteDifferences{
+            .commits_ahead = ahead,
+            .commits_behind = behind,
+        };
     }
 };
