@@ -65,7 +65,7 @@ pub fn main() u8 {
     print("git.is_bare:                 {}\n", .{repo.is_bare()});
     print("git.is_detached:             {}\n", .{repo.is_detached()});
     print("git.current_commit_hash:     {s}\n", .{repo.current_commit_hash(8)});
-    print("git.current_branch_name:     {s}\n", .{repo.current_branch_name()});
+    print("git.current_branch_name:     {?}\n", .{repo.current_branch_name()});
     print("git.count_commits:           {?}\n", .{repo.count_commits()});
 
     if (repo.get_status()) |status| {
