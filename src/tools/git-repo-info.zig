@@ -66,6 +66,20 @@ pub fn main() u8 {
     print("git.is_detached:             {}\n", .{repo.is_detached()});
     print("git.current_commit_hash:     {s}\n", .{repo.current_commit_hash(8)});
     print("git.current_branch_name:     {s}\n", .{repo.current_branch_name()});
+    print("git.count_commits:           {?}\n", .{repo.count_commits()});
+
+    if (repo.get_status()) |status| {
+        print("git.clean:                   {}\n", .{status.clean});
+
+        if (status.changes) |changes| {
+            print("git.changes.untracked:       {}\n", .{changes.untracked});
+            print("git.changes.modified:        {}\n", .{changes.modified});
+            print("git.changes.new:             {}\n", .{changes.new});
+            print("git.changes.deleted:         {}\n", .{changes.deleted});
+            print("git.changes.stashed:         {}\n", .{changes.stashed});
+            print("git.changes.conflicts:       {}\n", .{changes.conflicts});
+        }
+    }
 
     return 0;
 }
