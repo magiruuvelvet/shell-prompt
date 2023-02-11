@@ -62,6 +62,6 @@ fn test_git_repository_tests() !void {
     try testing.expectEqual(false, repo.is_bare());
     try testing.expectEqual(false, repo.is_detached());
 
-    runner.print_diagnostics("branch: {s}", .{repo.current_branch_name()});
+    runner.print_diagnostics("branch: {?}", .{repo.current_branch_name()});
     runner.print_diagnostics("hash: {s}", .{repo.current_commit_hash(8)});
 }

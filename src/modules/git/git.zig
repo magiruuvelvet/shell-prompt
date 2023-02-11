@@ -4,6 +4,9 @@ const c = @cImport({
     @cInclude("git2.h");
 });
 
+/// `git_tag_foreach_cb` return value to abort the iteration when a tag was found
+const GIT_TAG_FOUND: c_int = 0xFD;
+
 /// Initialize libgit2 global state.
 pub fn init() bool {
     return (c.git_libgit2_init() > 0);
@@ -71,10 +74,48 @@ pub const GitRepositoryRemoteDifferences = struct {
     }
 };
 
+/// payload for the `git_tag_foreach_cb` function
+const GitTagCbPayload = struct {
+    /// pointer to the git repository
+    ptr: ?*c.git_repository = null,
+
+    /// pointer to a `git_tag` object
+    tag: ?*c.git_tag = null,
+
+    /// pointer to the git object id
+    oid: ?*const c.git_oid = null,
+
+    /// copy of the git tag name without any prefixes
+    out: ?[]u8 = null,
+};
+
 /// the maximum possible length of the formatted commit hash
 pub const HashMaxLength = struct {
     const SHA1: usize = 40;
     const SHA256: usize = 64;
+};
+
+/// container to store the git branch name together with its source
+pub const GitBranchName = struct {
+    /// the source from where the name was looked up
+    pub const Source = enum {
+        /// an existing git branch
+        Branch,
+        /// a git tag (detached state and a matching tag found)
+        Tag,
+        /// commit hash (detached state and no matching tag found)
+        Commit,
+    };
+
+    pub inline fn format(value: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) std.os.WriteError!void {
+        return writer.print("{{name={s}, src={}}}", .{ value.name, value.src });
+    }
+
+    /// display name
+    name: []const u8,
+
+    /// source from where the name was looked up
+    src: Source,
 };
 
 pub const GitRepository = struct {
@@ -190,25 +231,70 @@ pub const GitRepository = struct {
     /// receive the current branch name of the repository
     /// if the current HEAD reference doesn't point to a branch name,
     /// it returns the first 8 characters of the commit hash instead
-    pub fn current_branch_name(self: *const GitRepository) []const u8 {
+    pub fn current_branch_name(self: *const GitRepository) ?GitBranchName {
         if (self.ref == null) {
-            return "";
+            return null;
         }
 
-        var out: [*c]const u8 = null;
-        if (c.git_branch_name(&out, self.ref) == 0)
+        if (self.is_detached())
         {
-            if (std.mem.span(out).len > 0)
-            {
-                var branch: []u8 = std.heap.page_allocator.alloc(u8, std.mem.span(out).len) catch "";
-                std.mem.copy(u8, branch, std.mem.span(out));
+            // try to find a tag name pointing to current HEAD
 
-                return branch;
+            // get git_oid object of the current branch
+            const oid = c.git_reference_target(self.ref);
+            if (oid == null) {
+                return null;
+            }
+
+            // lookup the tag name
+            var payload = GitTagCbPayload{
+                .ptr = self.ptr,
+                .oid = oid,
+            };
+            if (c.git_tag_foreach(self.ptr, &git_tag_foreach_cb, &payload) == GIT_TAG_FOUND) {
+                // if (payload.tag != null) {
+                //     defer c.git_tag_free(payload.tag);
+
+                //     const git_tag_name = c.git_tag_name(payload.tag);
+
+                //     var tag_name: []u8 = std.heap.page_allocator.alloc(u8, std.mem.span(git_tag_name).len) catch "";
+                //     std.mem.copy(u8, tag_name, std.mem.span(git_tag_name));
+
+                //     return tag_name;
+                // } else {
+                    return GitBranchName{
+                        .name = payload.out.?,
+                        .src = GitBranchName.Source.Tag,
+                    };
+                // }
+            }
+        }
+        else
+        {
+            // try to find the branch name of current HEAD
+
+            var out: [*c]const u8 = null;
+            if (c.git_branch_name(&out, self.ref) == 0)
+            {
+                if (std.mem.span(out).len > 0)
+                {
+                    var branch: []u8 = std.heap.page_allocator.alloc(u8, std.mem.span(out).len) catch "";
+                    std.mem.copy(u8, branch, std.mem.span(out));
+
+                    return GitBranchName{
+                        .name = branch,
+                        .src = GitBranchName.Source.Branch,
+                    };
+                }
             }
         }
 
-        // return the first 8 characters of the commit hash when the current ref has no branch name
-        return self.current_commit_hash(8);
+        // return the first 8 characters of the commit hash
+        // when the current ref has no branch name or tag name
+        return GitBranchName{
+            .name = self.current_commit_hash(8),
+            .src = GitBranchName.Source.Commit,
+        };
     }
 
     /// receive the current commit count, starting from the current HEAD reference
@@ -335,6 +421,40 @@ pub const GitRepository = struct {
 
         // visiting this function increases the stashed count, nothing to do here otherwise
         changes.stashed += 1;
+
+        return 0;
+    }
+
+    /// callback for the `git_tag_foreach_cb` function.
+    ///
+    /// C signature: `int git_tag_foreach_cb(const char *name, git_oid *oid, void *payload);`
+    /// Zig: `?*const fn ([*c]const u8, [*c]git_oid, ?*anyopaque) callconv(.C) c_int;`
+    fn git_tag_foreach_cb(name: [*c]const u8, oid: [*c]c.git_oid, payload: ?*anyopaque) callconv(.C) c_int {
+        // get readwrite pointer to GitTagCbPayload struct
+        var tag_cb_payload: *GitTagCbPayload = @ptrCast(*GitTagCbPayload,
+            @alignCast(@alignOf(*GitTagCbPayload), payload));
+
+        // compare the two git_oid objects for equality
+        if (c.git_oid_equal(oid, tag_cb_payload.oid) == 1) {
+            // var tag: ?*c.git_tag = null;
+            // if (c.git_tag_lookup(&tag, tag_cb_payload.ptr, oid) == 0) {
+            //     std.debug.print("here\n", .{});
+            //     tag_cb_payload.tag = tag;
+            // } else {
+            //     tag_cb_payload.tag = null;
+            // }
+
+            tag_cb_payload.out = std.heap.page_allocator.alloc(u8, std.mem.span(name).len) catch "";
+            std.mem.copy(u8, tag_cb_payload.out.?, std.mem.span(name));
+
+            // remove "refs/tags/" prefix
+            if (std.mem.startsWith(u8, tag_cb_payload.out.?, "refs/tags/")) {
+                tag_cb_payload.out = tag_cb_payload.out.?[10..];
+            }
+
+            // tag found, abort iteration
+            return GIT_TAG_FOUND;
+        }
 
         return 0;
     }
