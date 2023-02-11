@@ -79,6 +79,16 @@ pub fn main() u8 {
             print("git.changes.stashed:         {}\n", .{changes.stashed});
             print("git.changes.conflicts:       {}\n", .{changes.conflicts});
         }
+    } else {
+        print("git.status:                  null\n", .{});
+    }
+
+    if (repo.get_remote_differences()) |diff| {
+        print("git.remote_differences.commits_ahead:    {}\n", .{diff.commits_ahead});
+        print("git.remote_differences.commits_behind:   {}\n", .{diff.commits_behind});
+        print("git.remote_differences.diverged_history: {}\n", .{diff.diverged_history()});
+    } else {
+        print("git.remote_differences:      null\n", .{});
     }
 
     return 0;
