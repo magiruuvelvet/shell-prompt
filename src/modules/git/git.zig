@@ -22,6 +22,37 @@ pub const GitRepositoryError = error {
     OpenError,
 };
 
+/// count of files changed in the working copy of a git repository
+pub const GitRepositoryChanges = struct {
+    /// number of files in the working tree which are not tracked by git yet
+    untracked: u64 = 0,
+
+    /// number of modified files in the working tree and index
+    modified: u64 = 0,
+
+    /// number of new files in the index
+    new: u64 = 0,
+
+    /// number of deleted files from the index and working tree
+    deleted: u64 = 0,
+
+    /// number of stashes found in the repository (not part of regular changes)
+    stashed: u64 = 0,
+
+    /// number of files with merge conflicts
+    conflicts: u64 = 0,
+};
+
+/// a struct containing the entire git repository state
+pub const GitRepositoryStatus = struct {
+    /// count of files changed in the working copy of a git repository
+    changes: ?GitRepositoryChanges = null,
+
+    /// is the repository considered clean?
+    /// meaning: no modified files, no deleted files
+    clean: bool = false,
+};
+
 /// the maximum possible length of the formatted commit hash
 pub const HashMaxLength = struct {
     const SHA1: usize = 40;
@@ -160,5 +191,129 @@ pub const GitRepository = struct {
 
         // return the first 8 characters of the commit hash when the current ref has no branch name
         return self.current_commit_hash(8);
+    }
+
+    /// receive the current commit count, starting from the current HEAD reference
+    /// returns `null` if there were errors during counting, or when the repository doesn't
+    /// have any commits yet
+    pub fn count_commits(self: *const GitRepository) ?u64 {
+        var walk: ?*c.git_revwalk = null;
+        if (c.git_revwalk_new(&walk, self.ptr) != 0) {
+            return null;
+        }
+        defer c.git_revwalk_free(walk);
+
+        if (c.git_revwalk_sorting(walk, c.GIT_SORT_TOPOLOGICAL | c.GIT_SORT_TIME) != 0) {
+            return null;
+        }
+
+        if (c.git_revwalk_push_head(walk) != 0) {
+            return null;
+        }
+
+        var count: u64 = 0;
+
+        var oid: c.git_oid = undefined;
+        while (c.git_revwalk_next(&oid, walk) == 0) : (count += 1) {}
+        return count;
+    }
+
+    /// get the status of the git repository
+    pub fn get_status(self: *const GitRepository) ?GitRepositoryStatus {
+        const changes = self.count_changes();
+        const clean = if (changes) |ch| blk: {
+            break :blk ch.modified == 0 and ch.deleted == 0;
+        } else false;
+
+        return GitRepositoryStatus{
+            .changes = changes,
+            .clean = clean,
+        };
+    }
+
+    /// count the number of total changes in the git repository
+    pub fn count_changes(self: *const GitRepository) ?GitRepositoryChanges {
+        // a bare repository can't have any changes
+        if (self.is_bare()) {
+            return null;
+        }
+
+        // initialize empty changes counter
+        var changes = GitRepositoryChanges{};
+
+        // process all repository changes and populate the counter
+        _ = c.git_status_foreach(self.ptr, &git_status_cb, &changes);
+
+        // process all stashes and count them too
+        _ = c.git_stash_foreach(self.ptr, &git_stash_cb, &changes);
+
+        return changes;
+    }
+
+    /// callback for the `git_status_foreach` function.
+    ///
+    /// C signature: `int git_status_cb(const char *path, unsigned int status_flags, void *payload);`
+    /// Zig: `?*const fn ([*c]const u8, c_uint, ?*anyopaque) callconv(.C) c_int;`
+    fn git_status_cb(_: [*c]const u8, status_flags: c.git_status_t, payload: ?*anyopaque) callconv(.C) c_int {
+        // get readwrite pointer to GitRepositoryChanges struct
+        var changes: *GitRepositoryChanges = @ptrCast(*GitRepositoryChanges,
+            @alignCast(@alignOf(*GitRepositoryChanges), payload));
+
+        // GIT_STATUS_CURRENT
+        // GIT_STATUS_INDEX_NEW
+        // GIT_STATUS_INDEX_MODIFIED
+        // GIT_STATUS_INDEX_DELETED
+        // GIT_STATUS_INDEX_RENAMED
+        // GIT_STATUS_INDEX_TYPECHANGE
+        // GIT_STATUS_WT_NEW
+        // GIT_STATUS_WT_MODIFIED
+        // GIT_STATUS_WT_DELETED
+        // GIT_STATUS_WT_TYPECHANGE
+        // GIT_STATUS_WT_RENAMED
+        // GIT_STATUS_WT_UNREADABLE
+        // GIT_STATUS_IGNORED
+        // GIT_STATUS_CONFLICTED
+
+        // new files in the index are counted as new
+        if ((status_flags & c.GIT_STATUS_INDEX_NEW) > 0) {
+            changes.new += 1;
+        }
+
+        // new files in the working tree are counted as untracked
+        if ((status_flags & c.GIT_STATUS_WT_NEW) > 0) {
+            changes.untracked += 1;
+        }
+
+        // any modified files (index or working tree) are counted as modified
+        if ((status_flags & c.GIT_STATUS_INDEX_MODIFIED) > 0 or (status_flags & c.GIT_STATUS_WT_MODIFIED) > 0) {
+            changes.modified += 1;
+        }
+
+        // any deleted files (index or working tree) are counted as deleted
+        if ((status_flags & c.GIT_STATUS_INDEX_DELETED) > 0 or (status_flags & c.GIT_STATUS_WT_DELETED) > 0) {
+            changes.deleted += 1;
+        }
+
+        // files with merge conflicts are counted separately
+        if ((status_flags & c.GIT_STATUS_CONFLICTED) > 0) {
+            changes.conflicts += 1;
+        }
+
+        return 0;
+    }
+
+    /// callback for the `git_stash_foreach` function.
+    ///
+    /// C signature: `int git_stash_cb(size_t index, const char *message, const git_oid *stash_id, void *payload);`
+    /// Zig: `?*const fn (usize, [*c]const u8, [*c]const git_oid, ?*anyopaque) callconv(.C) c_int;`
+    fn git_stash_cb(_: usize, _: [*c]const u8, _: [*c]const c.git_oid, payload: ?*anyopaque) callconv(.C) c_int {
+        // get readwrite pointer to GitRepositoryChanges struct
+        var changes: *GitRepositoryChanges = @ptrCast(*GitRepositoryChanges,
+            @alignCast(@alignOf(*GitRepositoryChanges), payload));
+
+        // visiting this function increases the stashed count, nothing to do here otherwise
+        changes.stashed += 1;
+
+        return 0;
     }
 };
