@@ -9,6 +9,11 @@ const os = modules.os;
 const time = modules.os.time;
 const signals = modules.os.signals;
 const wcwidth_ascii = modules.term.wcwidth_ascii;
+const git = modules.git;
+
+const prompts = struct {
+    const git = @import("git-prompt.zig");
+};
 
 fn get_colored_bold(text: []const u8, rgb_code: ?[]const u8) []const u8 {
     if (rgb_code != null) {
@@ -34,18 +39,26 @@ pub const Prompt = struct {
     /// the color of the hostname in r;g;b format
     hostname_color: ?[]const u8 = null,
 
+    /// process working directory
+    pwd: ?[]const u8 = null,
+
+    // process working directory with the user's home directory replaced with a tilde (~) symbol
+    pwd_home_tilde: ?[]const u8 = null,
+
     /// initialize a new prompt struct
-    pub fn init(last_exit_status: u8) Prompt {
+    pub fn init(last_exit_status: u8) !Prompt {
         return Prompt{
             .winsize = term.get_winsize(),
             .last_exit_status = last_exit_status,
             .uid = os.get_uid(),
             .root_prefix = get_root_prefix(),
+            .pwd = try os.dir.get_pwd(),
+            .pwd_home_tilde = try os.dir.get_pwd_home_tilde(),
         };
     }
 
     /// render the prompt to the terminal window
-    pub fn render(self: Prompt) !void {
+    pub fn render(self: *const Prompt) !void {
         try self.render_line1();
         try self.render_line2();
         try self.render_context_lines();
@@ -74,7 +87,7 @@ pub const Prompt = struct {
     /// formats the last exit status
     ///
     /// TODO: don't hardcode ranges for colorization here, move to platform-specific implementation
-    fn format_last_exit_status(self: Prompt) [] const u8 {
+    fn format_last_exit_status(self: *const Prompt) [] const u8 {
         const signal_name = signals.map_exit_status_to_signal_name(self.last_exit_status);
 
         // exit status of zero is printed normally
@@ -107,7 +120,7 @@ pub const Prompt = struct {
 
     /// user: `┌───[username@hostname]───...───[時間HH:MM:SS]─┐`
     /// root: `┌───[hostname]─────────...───[時間HH:MM:SS]─┐`
-    fn render_line1(self: Prompt) !void {
+    fn render_line1(self: *const Prompt) !void {
         // username is only shown for non-root users
         const rendered_username = if (self.uid.? != 0) blk: {
             var username = os.get_user_display_name();
@@ -146,9 +159,8 @@ pub const Prompt = struct {
 
     /// `│ [0][8/4]: /data/projects/shell-prompt  ...  │`
     /// `[last_exit_status][visible files/hidden files]: working directory`
-    fn render_line2(self: Prompt) !void {
-        const pwd = try os.dir.get_pwd_home_tilde();
-        const pwd_stats = try os.dir.get_directory_stats(try os.dir.get_pwd());
+    fn render_line2(self: *const Prompt) !void {
+        const pwd_stats = try os.dir.get_directory_stats(self.pwd.?);
 
         var cols: u16 = 0;
 
@@ -174,11 +186,11 @@ pub const Prompt = struct {
         // format right side of the line
         const right = format(
             " │", .{});
-        cols += 2; // @intCast(u16, wcwidth_ascii(right));
+        cols += 2;
 
         // shorten the working directory when it doesn't fit into the line
         const max_possible_pwd_width = self.winsize.columns - cols;
-        const pwd_width = @intCast(u16, wcwidth_ascii(pwd));
+        const pwd_width = @intCast(u16, wcwidth_ascii(self.pwd_home_tilde.?));
         if (pwd_width > max_possible_pwd_width) {
             // TODO: implement this feature
         }
@@ -188,7 +200,7 @@ pub const Prompt = struct {
 
         // draw everything to the terminal
         renderer.draw_text_with_known_width(left);
-        renderer.draw_text_with_known_width(pwd);
+        renderer.draw_text_with_known_width(self.pwd_home_tilde.?);
         _ = renderer.draw_line(" ", self.winsize.columns - cols);
         renderer.draw_text_with_known_width(right);
         renderer.new_line();
@@ -197,13 +209,71 @@ pub const Prompt = struct {
     /// additional lines depending on the current directory and directory contents
     /// when the context is not known for the directory, an empty line is rendered
     /// this is were all the fun features of this prompt are rendered
-    fn render_context_lines(_: Prompt) !void {
-        // TODO: prompt context lines
+    fn render_context_lines(self: *const Prompt) !void {
+        const String = @import("zig-string").String;
+
+        var cols: u16 = 0;
+
+        var left = String.init(std.heap.page_allocator);
+        defer left.deinit();
+
+        // draw left side of the line
+        try left.concat(format(
+            "│{s}", .{
+                self.root_prefix.?}));
+
+        //==========================================================================
+        // git prompt component
+        //==========================================================================
+        var has_git_repository: bool = true;
+        var git_repository = git.GitRepository.discover(self.pwd.?) catch blk: {
+            has_git_repository = false;
+            break :blk null;
+        };
+        if (has_git_repository) {
+            defer git_repository.?.free();
+            try left.concat(try prompts.git.render_git_prompt_component(self, &git_repository.?));
+        }
+
+        //==========================================================================
+        // build system information component
+        //==========================================================================
+        // TODO: implement this, also must be aligned to the right side
+
+        //==========================================================================
+        // TODO: other prompt lines
+        //==========================================================================
+
+        // format right side of the line
+        const right = format(
+            " │", .{});
+        cols += 2;
+
+        // draw everything to the terminal
+        cols += renderer.draw_text(left.str());
+        _ = renderer.draw_line(" ", self.winsize.columns - cols);
+        renderer.draw_text_with_known_width(right);
+        renderer.new_line();
+
+        // reset line data
+        cols = 0;
+        left.clear();
+
+        //==========================================================================
+        //==========================================================================
+        //==========================================================================
+
+        // specific prompt components have multiple lines
+
+        // git commit message
+        if (has_git_repository) {
+            try left.concat(try prompts.git.render_git_prompt_message(self, &git_repository.?));
+        }
     }
 
     /// renders the final line of the prompt which contains the user input
     /// the content of this line depends on the user id
-    fn render_input_line(_: Prompt) !void {
+    fn render_input_line(_: *const Prompt) !void {
         // TODO: prompt input line
     }
 };

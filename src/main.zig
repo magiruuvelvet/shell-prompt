@@ -6,6 +6,7 @@ const printError = @import("utils/print.zig").err;
 const Prompt = @import("prompt/prompt.zig").Prompt;
 
 const winsize = @import("modules").term.winsize;
+const git = @import("modules").git;
 
 const params =
     \\-h, --help                   Display this help and exit.
@@ -57,15 +58,20 @@ pub fn main() u8 {
         };
     } else null;
 
-    var prompt = Prompt.init(last_exit_status);
+    _ = git.init();
+    defer _ = git.shutdown();
+
+    var prompt = Prompt.init(last_exit_status) catch |err| { return error_handler(err); };
     prompt.hostname_color = hostname_color;
     if (winsize_override) |w| {
         prompt.winsize = w;
     }
-    prompt.render() catch |err| {
-        printError("{}\n", .{err});
-        return 255;
-    };
+    prompt.render() catch |err| { return error_handler(err); };
 
     return 0;
+}
+
+fn error_handler(err: anyerror) u8 {
+    printError("{}\n", .{err});
+    return 255;
 }

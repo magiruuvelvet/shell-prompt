@@ -47,6 +47,7 @@ const pkgs = struct {
         .name = "prompt",
         .source = .{ .path = "src/prompt/package.zig" },
         .dependencies = &[_]std.build.Pkg{
+            deps.zig_string,
             utils,
             modules,
         },
@@ -89,6 +90,7 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     exe.addPackage(pkgs.modules);
     exe.addPackage(pkgs.prompt);
     exe.addPackage(pkgs.utils);
+    exe.addPackage(deps.zig_string);
 
     exe.addPackage(deps.zig_clap);
 
