@@ -40,6 +40,31 @@ pub fn get_directory_stats(path: []const u8) fs.File.OpenError!DirStats {
     return stats;
 }
 
+/// get a list of files in a directory
+pub fn get_filelist(path: []const u8, allocator: std.mem.Allocator) fs.File.OpenError![]std.fs.IterableDir.Entry {
+    // open iteratable directory
+    var dir = fs.openIterableDirAbsolute(path, .{}) catch |err| {
+        return err;
+    };
+
+    // close directory when done
+    defer dir.close();
+
+    // get directory iterator
+    var dirIterator = dir.iterate();
+
+    var files = std.ArrayList(std.fs.IterableDir.Entry).init(allocator);
+
+    var file = try dirIterator.next();
+    while (file != null) : (file = try dirIterator.next()) {
+        if (file) |f| {
+            files.append(f) catch {};
+        }
+    }
+
+    return files.toOwnedSlice();
+}
+
 /// get the process working directory
 pub fn get_pwd() std.os.GetCwdError![]const u8 {
     // need to implement this wrapper around std.os.getcwd(),
