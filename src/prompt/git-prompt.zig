@@ -1,6 +1,5 @@
 const std = @import("std");
 const modules = @import("modules");
-const renderer = @import("renderer.zig");
 const Prompt = @import("prompt.zig").Prompt;
 const format = @import("utils").format.format;
 const color = modules.term.color;

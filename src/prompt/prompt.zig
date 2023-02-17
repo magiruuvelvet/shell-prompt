@@ -14,6 +14,7 @@ const build_system = modules.build_system;
 
 const prompts = struct {
     const git = @import("git-prompt.zig");
+    const ssh = @import("ssh-prompt.zig");
 };
 
 fn get_colored_bold(text: []const u8, rgb_code: ?[]const u8) []const u8 {
@@ -244,7 +245,7 @@ pub const Prompt = struct {
         };
         if (has_git_repository) {
             try left.concat(try prompts.git.render_git_prompt_component(self, &git_repository.?, .{
-                .show_commit_count = true,
+                .show_commit_count = true, // TODO: configure boolean
             }));
         }
 
@@ -260,7 +261,16 @@ pub const Prompt = struct {
         }
 
         //==========================================================================
-        // TODO: other prompt lines
+        // ssh information component
+        //==========================================================================
+        if (std.mem.eql(u8, self.pwd_home_tilde.?, "~/.ssh")) {
+            try left.concat(prompts.ssh.render_ssh_directory_component(self));
+        }
+
+        // TODO: evenutally implement __fish_prompt_xdg_download_info (not needed that much)
+
+        //==========================================================================
+        //==========================================================================
         //==========================================================================
 
         // check if an additional context line is needed
