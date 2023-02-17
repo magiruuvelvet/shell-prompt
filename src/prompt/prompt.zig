@@ -272,13 +272,21 @@ pub const Prompt = struct {
         }
 
         //==========================================================================
+        // other prompt components
+        //==========================================================================
+        if (has_git_repository) {
+            // if the git prompt was rendered, don't render the other components
+        }
+        //==========================================================================
         // ssh information component
         //==========================================================================
-        if (std.mem.eql(u8, self.pwd_home_tilde.?, "~/.ssh")) {
+        else if (std.mem.eql(u8, self.pwd_home_tilde.?, "~/.ssh")) {
             try left.concat(prompts.ssh.render_ssh_directory_component(self));
         }
 
         // TODO: evenutally implement __fish_prompt_xdg_download_info (not needed that much)
+
+        // END OF if-else
 
         //==========================================================================
         //==========================================================================
