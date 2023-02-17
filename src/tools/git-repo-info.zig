@@ -91,5 +91,7 @@ pub fn main() u8 {
         print("git.remote_differences:      null\n", .{});
     }
 
+    print("git.commit_message: {s}\n", .{repo.get_commit_message()});
+
     return 0;
 }
