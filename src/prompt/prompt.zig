@@ -50,6 +50,9 @@ pub const Prompt = struct {
     /// render custom input line terminator when given
     custom_input_line_terminator: ?[]const u8 = null,
 
+    /// git prompt: enable the detection of git repositories
+    git_prompt_enabled: bool = true,
+
     /// git prompt: enable counting of commits (recommended to disable in huge repositories)
     git_prompt_enable_commit_counting: bool = true,
 
@@ -242,7 +245,12 @@ pub const Prompt = struct {
         // git prompt component
         //==========================================================================
         var has_git_repository: bool = true;
-        var git_repository = git.GitRepository.discover(self.pwd.?) catch blk: {
+        var git_repository = if (self.git_prompt_enabled) blk: {
+            break :blk git.GitRepository.discover(self.pwd.?) catch blk_discover: {
+                has_git_repository = false;
+                break :blk_discover null;
+            };
+        } else blk: {
             has_git_repository = false;
             break :blk null;
         };

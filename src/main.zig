@@ -19,6 +19,7 @@ const params =
     \\  --lines <u16>                  The number of available lines. (overrides autodetect)
     \\
     \\git prompt options:
+    \\  --git-prompt-disable                   Disable the git prompt altogether.
     \\  --git-prompt-disable-commit-counting   Disable counting of commits. (recommended for huge repositories)
 ;
 
@@ -81,6 +82,11 @@ pub fn main() u8 {
     // set custom input line terminator
     if (res.args.@"input-line-terminator") |custom_input_line_terminator| {
         prompt.custom_input_line_terminator = custom_input_line_terminator;
+    }
+
+    // disable the git prompt when this option is enabled
+    if (res.args.@"git-prompt-disable") {
+        prompt.git_prompt_enabled = false;
     }
 
     // disable git commit counting when this option is enabled
