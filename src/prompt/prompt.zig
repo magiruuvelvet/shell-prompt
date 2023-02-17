@@ -50,6 +50,9 @@ pub const Prompt = struct {
     /// render custom input line terminator when given
     custom_input_line_terminator: ?[]const u8 = null,
 
+    /// git prompt: enable counting of commits (recommended to disable in huge repositories)
+    git_prompt_enable_commit_counting: bool = true,
+
     /// initialize a new prompt struct
     pub fn init(last_exit_status: u8) !Prompt {
         return Prompt{
@@ -245,7 +248,7 @@ pub const Prompt = struct {
         };
         if (has_git_repository) {
             try left.concat(try prompts.git.render_git_prompt_component(self, &git_repository.?, .{
-                .show_commit_count = true, // TODO: configure boolean
+                .show_commit_count = self.git_prompt_enable_commit_counting,
             }));
         }
 

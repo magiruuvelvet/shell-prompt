@@ -10,11 +10,16 @@ const git = @import("modules").git;
 
 const params =
     \\-h, --help                     Display this help and exit.
-    \\--last-exit-status <u8>        Pass the last exit status to the shell prompt.
-    \\--hostname-color <str>         Color of the system hostname.
-    \\--input-line-terminator <str>  Use a custom input line terminator instead of the default one.
-    \\--columns <u16>                The number of available columns. (overrides autodetect)
-    \\--lines <u16>                  The number of available lines. (overrides autodetect)
+    \\
+    \\General options:
+    \\  --last-exit-status <u8>        Pass the last exit status to the shell prompt.
+    \\  --hostname-color <str>         Color of the system hostname.
+    \\  --input-line-terminator <str>  Use a custom input line terminator instead of the default one.
+    \\  --columns <u16>                The number of available columns. (overrides autodetect)
+    \\  --lines <u16>                  The number of available lines. (overrides autodetect)
+    \\
+    \\git prompt options:
+    \\  --git-prompt-disable-commit-counting   Disable counting of commits. (recommended for huge repositories)
 ;
 
 pub fn main() u8 {
@@ -76,6 +81,11 @@ pub fn main() u8 {
     // set custom input line terminator
     if (res.args.@"input-line-terminator") |custom_input_line_terminator| {
         prompt.custom_input_line_terminator = custom_input_line_terminator;
+    }
+
+    // disable git commit counting when this option is enabled
+    if (res.args.@"git-prompt-disable-commit-counting") {
+        prompt.git_prompt_enable_commit_counting = false;
     }
 
     // render prompt to screen
