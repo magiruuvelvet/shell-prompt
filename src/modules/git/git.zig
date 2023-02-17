@@ -499,4 +499,27 @@ pub const GitRepository = struct {
             .commits_behind = behind,
         };
     }
+
+    /// get the first line of the last commit message of the current branch
+    /// this function guarantees that the returned string doesn't contain any newline characters
+    pub fn get_commit_message(self: *const GitRepository) []const u8 {
+        const oid = c.git_reference_target(self.ref);
+        if (oid == null) {
+            return "";
+        }
+
+        var commit: ?*c.git_commit = null;
+        if (c.git_commit_lookup(&commit, self.ptr, oid) != 0) {
+            return "";
+        }
+
+        defer c.git_commit_free(commit);
+
+        const message_ptr = std.mem.span(c.git_commit_message(commit));
+        const end_of_line: usize = std.mem.indexOf(u8, message_ptr, "\n") orelse message_ptr.len;
+
+        var message: []u8 = std.heap.page_allocator.alloc(u8, end_of_line) catch "";
+        std.mem.copy(u8, message, message_ptr[0..end_of_line]);
+        return message;
+    }
 };
