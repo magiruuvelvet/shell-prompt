@@ -147,7 +147,8 @@ pub const Prompt = struct {
                 color.ascii.bold,
                 color.rgb_ascii(86, 86, 86, color.mode.foreground),
                 current_time.hours, current_time.minutes, current_time.seconds,
-                color.ascii.normal});
+                color.ascii.normal,
+            });
         cols += @intCast(u16, wcwidth_ascii(right));
 
         // draw everything to the terminal
@@ -169,7 +170,8 @@ pub const Prompt = struct {
             break :blk format("{s}/{}{s}", .{
                 color.rgb_ascii(213, 213, 213, color.mode.foreground),
                 pwd_stats.hidden,
-                color.ascii.normal});
+                color.ascii.normal,
+            });
         } else blk: {
             break :blk "";
         };
@@ -180,7 +182,8 @@ pub const Prompt = struct {
                 self.root_prefix.?,
                 self.format_last_exit_status(),
                 pwd_stats.visible,
-                pwd_stats_hidden});
+                pwd_stats_hidden,
+            });
         cols += @intCast(u16, wcwidth_ascii(left));
 
         // format right side of the line
@@ -193,6 +196,7 @@ pub const Prompt = struct {
         const pwd_width = @intCast(u16, wcwidth_ascii(self.pwd_home_tilde.?));
         if (pwd_width > max_possible_pwd_width) {
             // TODO: implement this feature
+            // example: /too/long/path -> …ng/path
         }
 
         // append the new calculated pwd width for the draw_line() function
@@ -220,7 +224,8 @@ pub const Prompt = struct {
         // draw left side of the line
         try left.concat(format(
             "│{s}", .{
-                self.root_prefix.?}));
+                self.root_prefix.?,
+            }));
 
         //==========================================================================
         // git prompt component
@@ -231,8 +236,9 @@ pub const Prompt = struct {
             break :blk null;
         };
         if (has_git_repository) {
-            defer git_repository.?.free();
-            try left.concat(try prompts.git.render_git_prompt_component(self, &git_repository.?));
+            try left.concat(try prompts.git.render_git_prompt_component(self, &git_repository.?, .{
+                .show_commit_count = true,
+            }));
         }
 
         //==========================================================================
@@ -244,9 +250,20 @@ pub const Prompt = struct {
         // TODO: other prompt lines
         //==========================================================================
 
+        var has_additional_line: bool = false;
+        var second_line_is_git: bool = false;
+
+        if (has_git_repository and !git_repository.?.is_empty()) {
+            has_additional_line = true;
+            second_line_is_git = true;
+        }
+
         // format right side of the line
-        const right = format(
-            " │", .{});
+        const right = if (has_additional_line) blk: {
+            break :blk " │";
+        } else blk: {
+            break :blk "─┘";
+        };
         cols += 2;
 
         // draw everything to the terminal
@@ -266,8 +283,29 @@ pub const Prompt = struct {
         // specific prompt components have multiple lines
 
         // git commit message
+        if (second_line_is_git) {
+            cols += 2; // right side
+
+            try left.concat(format(
+                "│{s}", .{
+                    self.root_prefix.?,
+                }));
+            try left.concat(try prompts.git.render_git_prompt_message(self, &git_repository.?,
+                self.winsize.columns - (@intCast(u16, wcwidth_ascii(left.str())) + cols) - 2));
+
+            // draw everything to the terminal
+            cols += renderer.draw_text(left.str());
+            _ = renderer.draw_line(" ", self.winsize.columns - cols);
+            renderer.draw_text_with_known_width("─┘");
+            renderer.new_line();
+        }
+
+        //==========================================================================
+        // clean up
+        //==========================================================================
+
         if (has_git_repository) {
-            try left.concat(try prompts.git.render_git_prompt_message(self, &git_repository.?));
+            git_repository.?.free();
         }
     }
 
