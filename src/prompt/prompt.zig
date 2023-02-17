@@ -10,6 +10,7 @@ const time = modules.os.time;
 const signals = modules.os.signals;
 const wcwidth_ascii = modules.term.wcwidth_ascii;
 const git = modules.git;
+const build_system = modules.build_system;
 
 const prompts = struct {
     const git = @import("git-prompt.zig");
@@ -224,6 +225,9 @@ pub const Prompt = struct {
         var left = String.init(std.heap.page_allocator);
         defer left.deinit();
 
+        var right = String.init(std.heap.page_allocator);
+        defer right.deinit();
+
         // draw left side of the line
         try left.concat(format(
             "│{s}", .{
@@ -247,12 +251,19 @@ pub const Prompt = struct {
         //==========================================================================
         // build system information component
         //==========================================================================
-        // TODO: implement this, also must be aligned to the right side
+        const build_systems = build_system.detect_build_systems(self.pwd.?);
+        if (build_systems.len > 0) {
+            try right.concat("[");
+            try right.concat(build_systems);
+            try right.concat("]");
+            cols += @intCast(u16, wcwidth_ascii(build_systems)) + 2;
+        }
 
         //==========================================================================
         // TODO: other prompt lines
         //==========================================================================
 
+        // check if an additional context line is needed
         var has_additional_line: bool = false;
         var second_line_is_git: bool = false;
 
@@ -262,22 +273,23 @@ pub const Prompt = struct {
         }
 
         // format right side of the line
-        const right = if (has_additional_line) blk: {
+        try right.concat(if (has_additional_line) blk: {
             break :blk " │";
         } else blk: {
             break :blk "─┘";
-        };
+        });
         cols += 2;
 
         // draw everything to the terminal
         cols += renderer.draw_text(left.str());
         _ = renderer.draw_line(" ", self.winsize.columns - cols);
-        renderer.draw_text_with_known_width(right);
+        renderer.draw_text_with_known_width(right.str());
         renderer.new_line();
 
         // reset line data
         cols = 0;
         left.clear();
+        right.clear();
 
         //==========================================================================
         //==========================================================================
