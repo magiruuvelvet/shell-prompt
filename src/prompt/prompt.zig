@@ -42,8 +42,11 @@ pub const Prompt = struct {
     /// process working directory
     pwd: ?[]const u8 = null,
 
-    // process working directory with the user's home directory replaced with a tilde (~) symbol
+    /// process working directory with the user's home directory replaced with a tilde (~) symbol
     pwd_home_tilde: ?[]const u8 = null,
+
+    /// render custom input line terminator when given
+    custom_input_line_terminator: ?[]const u8 = null,
 
     /// initialize a new prompt struct
     pub fn init(last_exit_status: u8) !Prompt {
@@ -311,7 +314,33 @@ pub const Prompt = struct {
 
     /// renders the final line of the prompt which contains the user input
     /// the content of this line depends on the user id
-    fn render_input_line(_: *const Prompt) !void {
-        // TODO: prompt input line
+    fn render_input_line(self: *const Prompt) !void {
+        const line_terminator = if (self.custom_input_line_terminator) |custom_input_line_terminator| blk: {
+            break :blk custom_input_line_terminator;
+        } else blk: {
+            break :blk "# ";
+        };
+
+        const line = format("└─{s}{s}", .{
+            // input line VPN hint
+            if (std.os.getenv("VPNSHELL") != null) blk_vpn: {
+                break :blk_vpn color.rgb("(vpn)", 165, 0, 165, color.mode.foreground);
+            } else blk_vpn: {
+                break :blk_vpn "";
+            },
+
+            // input line terminator
+            if (self.uid.? == 0) blk_term: {
+                break :blk_term format("{s}{s}${s} ", .{
+                    color.ascii.bold,
+                    color.rgb_ascii(182, 0, 0, color.mode.foreground),
+                    color.ascii.normal,
+                });
+            } else blk_term: {
+                break :blk_term line_terminator;
+            },
+        });
+
+        renderer.draw_text_with_known_width(line);
     }
 };

@@ -9,11 +9,12 @@ const winsize = @import("modules").term.winsize;
 const git = @import("modules").git;
 
 const params =
-    \\-h, --help                   Display this help and exit.
-    \\--last-exit-status <u8>      Pass the last exit status to the shell prompt.
-    \\--hostname-color <str>       Color of the system hostname.
-    \\--columns <u16>              The number of available columns. (overrides autodetect)
-    \\--lines <u16>                The number of available lines. (overrides autodetect)
+    \\-h, --help                     Display this help and exit.
+    \\--last-exit-status <u8>        Pass the last exit status to the shell prompt.
+    \\--hostname-color <str>         Color of the system hostname.
+    \\--input-line-terminator <str>  Use a custom input line terminator instead of the default one.
+    \\--columns <u16>                The number of available columns. (overrides autodetect)
+    \\--lines <u16>                  The number of available lines. (overrides autodetect)
 ;
 
 pub fn main() u8 {
@@ -49,6 +50,7 @@ pub fn main() u8 {
     const last_exit_status: u8 = res.args.@"last-exit-status" orelse 0;
     const hostname_color: ?[]const u8 = res.args.@"hostname-color";
 
+    // get custom window size
     const winsize_columns: ?u16 = res.args.columns;
     const winsize_lines: ?u16 = res.args.lines;
     const winsize_override: ?winsize = if (winsize_columns != null and winsize_lines != null) blk: {
@@ -58,14 +60,25 @@ pub fn main() u8 {
         };
     } else null;
 
+    // initialize libgit2 for git features
     _ = git.init();
     defer _ = git.shutdown();
 
+    // initialize prompt
     var prompt = Prompt.init(last_exit_status) catch |err| { return error_handler(err); };
     prompt.hostname_color = hostname_color;
+
+    // set custom window size
     if (winsize_override) |w| {
         prompt.winsize = w;
     }
+
+    // set custom input line terminator
+    if (res.args.@"input-line-terminator") |custom_input_line_terminator| {
+        prompt.custom_input_line_terminator = custom_input_line_terminator;
+    }
+
+    // render prompt to screen
     prompt.render() catch |err| { return error_handler(err); };
 
     return 0;
