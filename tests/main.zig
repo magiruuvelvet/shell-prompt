@@ -9,6 +9,7 @@ pub fn main() !void {
     try @import("modules/term.zig").run();
     try @import("modules/os.zig").run();
     try @import("modules/git.zig").run();
+    try @import("modules/build_system.zig").run();
 
     try @import("prompt/renderer.zig").run();
 

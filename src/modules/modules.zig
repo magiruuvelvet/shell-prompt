@@ -6,3 +6,4 @@
 pub const term = @import("term/term.zig");
 pub const os = @import("os/os.zig");
 pub const git = @import("git/git.zig");
+pub const build_system = @import("build_system/build_system.zig");
