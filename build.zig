@@ -76,6 +76,12 @@ fn add_c_libraries(step: *std.build.LibExeObjStep) void {
     }
 }
 
+fn add_libgit2(step: *std.build.LibExeObjStep) void {
+    step.addIncludePath("deps/libgit2/include");
+    step.addLibraryPath("deps/libgit2/lib64");
+    step.addObjectFile("deps/libgit2/lib64/liblibgit2package.a");
+}
+
 /// Build the main application binary.
 fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     const exe = b.addExecutable("shell-prompt", "src/main.zig");
@@ -83,7 +89,7 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     exe.setBuildMode(mode);
 
     exe.linkLibC();
-    exe.linkSystemLibrary("git2");
+    add_libgit2(exe);
 
     add_c_libraries(exe);
 
@@ -104,7 +110,7 @@ fn build_tools(b: *Builder) void {
     gitRepoInfo.setTarget(target);
     gitRepoInfo.setBuildMode(mode);
     gitRepoInfo.linkLibC();
-    gitRepoInfo.linkSystemLibrary("git2");
+    add_libgit2(gitRepoInfo);
     gitRepoInfo.addPackage(pkgs.modules); // for the git module
     gitRepoInfo.addPackage(pkgs.utils);
     gitRepoInfo.addPackage(deps.zig_clap);
@@ -118,7 +124,7 @@ fn build_unit_tests(b: *Builder) *std.build.LibExeObjStep {
     unit_tests.setBuildMode(mode);
 
     unit_tests.linkLibC();
-    unit_tests.linkSystemLibrary("git2");
+    add_libgit2(unit_tests);
 
     unit_tests.addPackage(pkgs.modules);
     unit_tests.addPackage(pkgs.prompt);
