@@ -4,3 +4,6 @@
 [submodule "libs/zig-string"]
 	path = libs/zig-string
 	url = https://github.com/JakubSzark/zig-string.git
+[submodule "libs/libgit2"]
+	path = libs/libgit2
+	url = https://github.com/libgit2/libgit2.git
