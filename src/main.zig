@@ -9,7 +9,7 @@ const winsize = @import("modules").term.winsize;
 const git = @import("modules").git;
 
 const params =
-    \\-h, --help                     Display this help and exit.
+    \\  -h, --help                     Display this help and exit.
     \\
     \\General options:
     \\  --last-exit-status <u8>        Pass the last exit status to the shell prompt.
@@ -21,6 +21,9 @@ const params =
     \\git prompt options:
     \\  --git-prompt-disable                   Disable the git prompt altogether.
     \\  --git-prompt-disable-commit-counting   Disable counting of commits. (recommended for huge repositories)
+    \\
+    \\Scripting options:
+    \\  --git-probe-repository         Probes the current directory for a git repository and exits.
 ;
 
 pub fn main() u8 {
@@ -48,7 +51,7 @@ pub fn main() u8 {
     // print help and exit
     if (res.args.help)
     {
-        print("{s}\n", .{params});
+        print("Usage: shell-prompt [options]\n\n{s}\n", .{params});
         //clap.usage(std.io.getStdOut().writer(), clap.Help, &cmd_params) catch unreachable;
         return 0;
     }
@@ -69,6 +72,17 @@ pub fn main() u8 {
     // initialize libgit2 for git features
     _ = git.init();
     defer _ = git.shutdown();
+
+    // probes the current directory for a git repository and exits with a status
+    if (res.args.@"git-probe-repository") {
+        var repo = git.GitRepository.discover(".") catch {
+            print("0\n", .{}); // 0 (bool) == not found
+            return 1;          // return error status
+        };
+        defer repo.free();
+        print("1\n", .{});     // 1 (bool) == found
+        return 0;              // return success status
+    }
 
     // initialize prompt
     var prompt = Prompt.init(last_exit_status) catch |err| { return error_handler(err); };
