@@ -76,6 +76,11 @@ fn add_c_libraries(step: *std.build.LibExeObjStep) void {
     }
 }
 
+fn add_libc(step: *std.build.LibExeObjStep) void {
+    step.linkLibC();
+    //step.setLibCFile(.{ .path = "./musl.libc" });
+}
+
 fn add_libgit2(step: *std.build.LibExeObjStep) void {
     step.addIncludePath("deps/libgit2/include");
     step.addLibraryPath("deps/libgit2/lib64");
@@ -88,7 +93,7 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
-    exe.linkLibC();
+    add_libc(exe);
     add_libgit2(exe);
 
     add_c_libraries(exe);
@@ -109,7 +114,7 @@ fn build_tools(b: *Builder) void {
     const gitRepoInfo = b.addExecutable("git-repo-info", "src/tools/git-repo-info.zig");
     gitRepoInfo.setTarget(target);
     gitRepoInfo.setBuildMode(mode);
-    gitRepoInfo.linkLibC();
+    add_libc(gitRepoInfo);
     add_libgit2(gitRepoInfo);
     gitRepoInfo.addPackage(pkgs.modules); // for the git module
     gitRepoInfo.addPackage(pkgs.utils);
@@ -123,7 +128,7 @@ fn build_unit_tests(b: *Builder) *std.build.LibExeObjStep {
     unit_tests.setTarget(target);
     unit_tests.setBuildMode(mode);
 
-    unit_tests.linkLibC();
+    add_libc(unit_tests);
     add_libgit2(unit_tests);
 
     unit_tests.addPackage(pkgs.modules);
