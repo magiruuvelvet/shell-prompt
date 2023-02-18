@@ -2,6 +2,8 @@ const std = @import("std");
 const fs = std.fs;
 const get_home_directory = @import("os.zig").get_home_directory;
 
+pub const FileEntry = std.fs.IterableDir.Entry;
+
 pub const DirStats = struct {
     /// visible files (no dot prefix)
     visible: u64 = 0,
@@ -41,7 +43,7 @@ pub fn get_directory_stats(path: []const u8) fs.File.OpenError!DirStats {
 }
 
 /// get a list of files in a directory
-pub fn get_filelist(path: []const u8, allocator: std.mem.Allocator) fs.File.OpenError![]std.fs.IterableDir.Entry {
+pub fn get_filelist(path: []const u8, allocator: std.mem.Allocator) anyerror![]FileEntry {
     // open iteratable directory
     var dir = fs.openIterableDirAbsolute(path, .{}) catch |err| {
         return err;
@@ -53,12 +55,14 @@ pub fn get_filelist(path: []const u8, allocator: std.mem.Allocator) fs.File.Open
     // get directory iterator
     var dirIterator = dir.iterate();
 
-    var files = std.ArrayList(std.fs.IterableDir.Entry).init(allocator);
+    var files = std.ArrayList(FileEntry).init(allocator);
 
     var file = try dirIterator.next();
     while (file != null) : (file = try dirIterator.next()) {
         if (file) |f| {
-            files.append(f) catch {};
+            var owned_name: []u8 = try allocator.alloc(u8, f.name.len);
+            std.mem.copy(u8, owned_name, f.name);
+            files.append(FileEntry{.name = owned_name, .kind = f.kind}) catch {};
         }
     }
 

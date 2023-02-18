@@ -2,6 +2,7 @@ const std = @import("std");
 const os = @import("../os/os.zig");
 const color = @import("../term/term.zig").color;
 const eql = std.mem.eql;
+const FileEntry = os.dir.FileEntry;
 
 const String = @import("zig-string").String;
 
@@ -9,7 +10,7 @@ const String = @import("zig-string").String;
 /// `build_system_name`: the name of the build system
 /// `display_name`: the display value of this build system
 fn append_if_match(
-    list: *std.ArrayList([]const u8), file: std.fs.IterableDir.Entry, build_system_name: []const u8, display_name: []const u8,
+    list: *std.ArrayList([]const u8), file: *const FileEntry, build_system_name: []const u8, display_name: []const u8,
     r: u8, g: u8, b: u8, bold: bool) void
 {
     // only match against entries of type "file"
@@ -26,7 +27,7 @@ fn append_if_match(
 /// `build_system_name`: the name of the build system
 /// `display_name`: the display value of this build system
 fn append_regardless(
-    list: *std.ArrayList([]const u8), file: std.fs.IterableDir.Entry, build_system_name: []const u8, display_name: []const u8,
+    list: *std.ArrayList([]const u8), file: *const FileEntry, build_system_name: []const u8, display_name: []const u8,
     r: u8, g: u8, b: u8, bold: bool) void
 {
     // discard unused parameters
@@ -43,11 +44,11 @@ fn append_regardless(
 /// build a pretty-printed list of build systems
 /// if an entry is appended to the list is decided by the append function
 fn build_list(
-    list: *std.ArrayList([]const u8), files: *const []std.fs.IterableDir.Entry,
-    comptime append_function: fn(*std.ArrayList([]const u8), std.fs.IterableDir.Entry, []const u8, []const u8, u8, u8, u8, bool) void) void
+    list: *std.ArrayList([]const u8), files: *const []FileEntry,
+    comptime append_function: fn(*std.ArrayList([]const u8), *const FileEntry, []const u8, []const u8, u8, u8, u8, bool) void) void
 {
     // the order in this list kind of matters for optical reasons, so keep similar items together
-    for (files.*) |file| {
+    for (files.*) |*file| {
         append_function(list, file, "CMakeLists.txt",   "cmake",    204, 204, 204, true); // universal build system
         append_function(list, file, "wscript",          "waf",      242, 225,   0, true); // universal build system
         append_function(list, file, "meson.build",      "meson",     57,  32, 124, true); // universal build system
@@ -58,6 +59,7 @@ fn build_list(
         append_function(list, file, "package.json",     "npm",      202, 187,  75, true); // NodeJS
         append_function(list, file, "dub.json",         "dub",      176,  57,  49, true); // D
         append_function(list, file, "build.zig",        "zig",      247, 164,  29, true); // Zig
+        append_function(list, file, "build.ninja",      "ninja",     44,  44,  44, true); // Ninja
 
         append_function(list, file, "setup.py",         "python",    53, 114, 165, true); // Python
         append_function(list, file, "requirements.txt", "pip",       53, 114, 165, true); // Python PIP
@@ -114,9 +116,9 @@ pub fn test_build_system_colors() []const u8 {
     defer formatted_list.deinit();
 
     // create list with one entry; used to trigger the iteration in build_list
-    var files = std.ArrayList(std.fs.IterableDir.Entry).init(std.heap.page_allocator);
+    var files = std.ArrayList(FileEntry).init(std.heap.page_allocator);
     defer files.deinit();
-    files.append(std.fs.IterableDir.Entry{.name = "", .kind = .File}) catch {};
+    files.append(FileEntry{.name = "", .kind = .File}) catch {};
 
     // execute builder and push all entries into the list, regardless of their existence on the filesystem
     build_list(&formatted_list, &files.items, append_regardless);
