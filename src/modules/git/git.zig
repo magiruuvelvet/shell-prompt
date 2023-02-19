@@ -9,6 +9,9 @@ const GIT_TAG_FOUND: c_int = 0xFD;
 
 /// Initialize libgit2 global state.
 pub fn init() bool {
+    // disable ownership check, this project only performs read-only operations (r--)
+    _ = c.git_libgit2_opts(c.GIT_OPT_SET_OWNER_VALIDATION, @intCast(c_int, 0));
+
     return (c.git_libgit2_init() > 0);
 }
 
