@@ -52,6 +52,12 @@ const pkgs = struct {
             modules,
         },
     };
+
+    /// sourceable shell scripts for initialization
+    const shell = std.build.Pkg{
+        .name = "shell",
+        .source = .{ .path = "shell/package.zig" },
+    };
 };
 
 fn add_c_libraries(step: *std.build.LibExeObjStep) void {
@@ -98,6 +104,7 @@ fn build_shell_prompt(b: *Builder) *std.build.LibExeObjStep {
 
     add_c_libraries(exe);
 
+    exe.addPackage(pkgs.shell);
     exe.addPackage(pkgs.modules);
     exe.addPackage(pkgs.prompt);
     exe.addPackage(pkgs.utils);

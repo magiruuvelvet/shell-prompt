@@ -8,6 +8,8 @@ const Prompt = @import("prompt/prompt.zig").Prompt;
 const winsize = @import("modules").term.winsize;
 const git = @import("modules").git;
 
+const shell = @import("shell").shell;
+
 const params =
     \\  -h, --help                     Display this help and exit.
     \\
@@ -17,6 +19,9 @@ const params =
     \\  --input-line-terminator <str>  Use a custom input line terminator instead of the default one.
     \\  --columns <u16>                The number of available columns. (overrides autodetect)
     \\  --lines <u16>                  The number of available lines. (overrides autodetect)
+    \\
+    \\Shell options:
+    \\  --shell-init-source <str>      Prints a sourceable script for the specified shell.
     \\
     \\git prompt options:
     \\  --git-prompt-disable                   Disable the git prompt altogether.
@@ -54,6 +59,15 @@ pub fn main() u8 {
         print("Usage: shell-prompt [options]\n\n{s}\n", .{params});
         //clap.usage(std.io.getStdOut().writer(), clap.Help, &cmd_params) catch unreachable;
         return 0;
+    }
+
+    if (res.args.@"shell-init-source") |shell_init_source| {
+        if (std.mem.eql(u8, shell_init_source, "fish")) {
+            print("{s}", .{shell.fish});
+            return 0;
+        } else {
+            return 1;
+        }
     }
 
     const last_exit_status: u8 = res.args.@"last-exit-status" orelse 0;
