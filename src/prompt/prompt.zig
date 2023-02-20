@@ -8,6 +8,7 @@ const color = term.color;
 const os = modules.os;
 const time = modules.os.time;
 const signals = modules.os.signals;
+const ssh = modules.os.ssh;
 const wcwidth_ascii = modules.term.wcwidth_ascii;
 const git = modules.git;
 const build_system = modules.build_system;
@@ -152,6 +153,14 @@ pub const Prompt = struct {
         const left = format(
             "┌───[{s}{s}]─", .{rendered_username, get_colored_bold(hostname, self.hostname_color)});
 
+        // check if we are inside a ssh session
+        const ssh_hint = if (ssh.is_ssh_session()) blk: {
+            cols += 6;
+            break :blk format("{s}{s}{s}{s}{s}", .{"[", color.ascii.bold, "SSH", color.ascii.normal, "]─"});
+        } else blk: {
+            break :blk "";
+        };
+
         // format right side of the line
         const right = format(
             "─[{s}{s}時間{d:0>2}:{d:0>2}:{d:0>2}{s}]─┐", .{
@@ -164,6 +173,7 @@ pub const Prompt = struct {
 
         // draw everything to the terminal
         cols += renderer.draw_text(left);
+        renderer.draw_text_with_known_width(ssh_hint);
         _ = renderer.draw_line("─", self.winsize.columns - cols);
         renderer.draw_text_with_known_width(right);
         renderer.new_line();
