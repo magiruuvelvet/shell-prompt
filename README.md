@@ -18,6 +18,8 @@ intended to be used as fish shell prompt together with [magiruuvelvet/fish-shell
 
  - detects build systems in a directory and displays their name
 
+ - displays a hint whenever the current shell is connected via ssh
+
 ## Building
 
 You need the latest tagged release of the Zig compiler (0.10.1). The master branch of the compiler is not supported.
