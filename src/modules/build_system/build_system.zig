@@ -6,22 +6,41 @@ const FileEntry = os.dir.FileEntry;
 
 const String = @import("zig-string").String;
 
-// TODO: refactor this file and make matching more flexible
-
-const Options = struct {
+/// formatting and matching options for an `Entry` object
+const EntryItemOptions = struct {
+    sort: usize = 0,
     bold: bool = true,
     exact_match: bool = true,
     starts_with: bool = false,
     ends_with: bool = false,
 };
 
+/// formatted entry with a sorting hint
+const Entry = struct {
+    value: []const u8,
+    sort: usize,
+
+    pub fn lessThan(context: void, lhs: Entry, rhs: Entry) bool {
+        _ = context;
+        return lhs.sort < rhs.sort;
+    }
+};
+
+/// list of `Entry` objects
+const EntryList = std.ArrayList(Entry);
+
 /// `file`: the file entry to check against
 /// `build_system_name`: the name of the build system
 /// `display_name`: the display value of this build system
 fn append_if_match(
-    list: *std.ArrayList([]const u8), file: *const FileEntry, build_system_name: []const u8, display_name: []const u8,
-    r: u8, g: u8, b: u8, options: Options) void
+    list: *EntryList, file: *const FileEntry, duplicate_checker: *bool, build_system_names: anytype, display_name: []const u8,
+    r: u8, g: u8, b: u8, options: EntryItemOptions) void
 {
+    // return if already added
+    if (duplicate_checker.*) {
+        return;
+    }
+
     // only match against entries of type "file"
     if (file.kind != .File) {
         return;
@@ -29,19 +48,32 @@ fn append_if_match(
 
     var should_append = false;
 
-    if (options.exact_match and mem.eql(u8, file.name, build_system_name)) {
-        should_append = true;
-    } else if (options.starts_with and mem.startsWith(u8, file.name, build_system_name)) {
-        should_append = true;
-    } else if (options.ends_with and mem.endsWith(u8, file.name, build_system_name)) {
-        should_append = true;
+    inline for (build_system_names) |build_system_name| {
+        if (options.exact_match and mem.eql(u8, file.name, build_system_name)) {
+            should_append = true;
+            break;
+        } else if (options.starts_with and mem.startsWith(u8, file.name, build_system_name)) {
+            should_append = true;
+            break;
+        } else if (options.ends_with and mem.endsWith(u8, file.name, build_system_name)) {
+            should_append = true;
+            break;
+        }
     }
 
     if (should_append) {
+        duplicate_checker.* = true;
+
         if (options.bold) {
-            list.append(color.rgb_bold(display_name, r, g, b, color.mode.foreground)) catch {};
+            list.append(.{
+                .value = color.rgb_bold(display_name, r, g, b, color.mode.foreground),
+                .sort = options.sort,
+            }) catch {};
         } else {
-            list.append(color.rgb(display_name, r, g, b, color.mode.foreground)) catch {};
+            list.append(.{
+                .value = color.rgb(display_name, r, g, b, color.mode.foreground),
+                .sort = options.sort,
+            }) catch {};
         }
     }
 }
@@ -50,53 +82,144 @@ fn append_if_match(
 /// `build_system_name`: the name of the build system
 /// `display_name`: the display value of this build system
 fn append_regardless(
-    list: *std.ArrayList([]const u8), file: *const FileEntry, build_system_name: []const u8, display_name: []const u8,
-    r: u8, g: u8, b: u8, options: Options) void
+    list: *EntryList, file: *const FileEntry, duplicate_checker: *bool, build_system_names: anytype, display_name: []const u8,
+    r: u8, g: u8, b: u8, options: EntryItemOptions) void
 {
     // discard unused parameters
     _ = file;
-    _ = build_system_name;
+    _ = build_system_names;
+    _ = duplicate_checker;
 
     if (options.bold) {
-        list.append(color.rgb_bold(display_name, r, g, b, color.mode.foreground)) catch {};
+        list.append(.{
+            .value = color.rgb_bold(display_name, r, g, b, color.mode.foreground),
+            .sort = options.sort,
+        }) catch {};
     } else {
-        list.append(color.rgb(display_name, r, g, b, color.mode.foreground)) catch {};
+        list.append(.{
+            .value = color.rgb(display_name, r, g, b, color.mode.foreground),
+            .sort = options.sort,
+        }) catch {};
     }
 }
 
 /// build a pretty-printed list of build systems
 /// if an entry is appended to the list is decided by the append function
 fn build_list(
-    list: *std.ArrayList([]const u8), files: *const []FileEntry,
-    comptime append_function: fn(*std.ArrayList([]const u8), *const FileEntry, []const u8, []const u8, u8, u8, u8, Options) void) void
+    list: *EntryList, files: *const []FileEntry,
+    comptime append_function: fn(*EntryList, *const FileEntry, duplicate_checker: *bool, anytype,
+        []const u8, u8, u8, u8, EntryItemOptions) void) void
 {
+    // duplicate tracker variables, should be hopefully faster than checking the entire list with each iteration
+    var cmake = false;
+    var waf = false;
+    var meson = false;
+    var gradle = false;
+    var maven = false;
+    var cargo = false;
+    var composer = false;
+    var npm = false;
+    var typescript = false;
+    var dub = false;
+    var zig = false;
+    var ninja = false;
+    var docker = false;
+    var docker_compose = false;
+    var python = false;
+    var pip = false;
+    var rubygems = false;
+    var rake = false;
+    var makefile = false;
+    var configure = false;
+    var msbuild = false;
+    var go = false;
+    var elixir = false;
+
     // the order in this list kind of matters for optical reasons, so keep similar items together
     for (files.*) |*file| {
-        append_function(list, file, "CMakeLists.txt",   "cmake",    204, 204, 204, .{}); // universal build system
-        append_function(list, file, "wscript",          "waf",      242, 225,   0, .{}); // universal build system
-        append_function(list, file, "meson.build",      "meson",     57,  32, 124, .{}); // universal build system
-        append_function(list, file, "build.gradle",     "gradle",     2,  48,  58, .{}); // JVM-based
-        append_function(list, file, "pom.xml",          "maven",    176, 114,  25, .{}); // JVM-based
-        append_function(list, file, "Cargo.toml",       "cargo",    222, 165, 132, .{}); // Rust
-        append_function(list, file, "composer.json",    "composer",  79,  93, 149, .{}); // PHP
-        append_function(list, file, "package.json",     "npm",      202, 187,  75, .{}); // NodeJS
-        append_function(list, file, "tsconfig.json",    "typescript", 49,120, 198, .{}); // TypeScript
-        append_function(list, file, "dub.json",         "dub",      176,  57,  49, .{}); // D
-        append_function(list, file, "dub.sdl",          "dub",      176,  57,  49, .{}); // D
-        append_function(list, file, "build.zig",        "zig",      247, 164,  29, .{}); // Zig
-        append_function(list, file, "build.ninja",      "ninja",     44,  44,  44, .{}); // Ninja
-        append_function(list, file, "Dockerfile",       "docker",    13, 183, 237, .{}); // Docker
+        // CMake, universal build system
+        append_function(list, file, &cmake,
+            .{"CMakeLists.txt"}, "cmake", 204, 204, 204, .{.sort = 100});
 
-        append_function(list, file, "setup.py",         "python",    53, 114, 165, .{}); // Python
-        append_function(list, file, "requirements.txt", "pip",       53, 114, 165, .{}); // Python PIP
+        // waf, universal build system
+        append_function(list, file, &waf,
+            .{"wscript"}, "waf", 242, 225, 0, .{.sort = 140});
 
-        append_function(list, file, "Gemfile",          "rubygems", 112,  21,  22, .{}); // Ruby
-        append_function(list, file, "Rakefile",         "rake",     112,  21,  22, .{}); // Ruby
+        // meson, universal build system
+        append_function(list, file, &meson,
+            .{"meson.build"}, "meson", 57, 32, 124, .{.sort = 130});
 
-        // push duplicate to alert about an ambiguous makefile match
-        append_function(list, file, "Makefile",         "makefile",  66, 120,  25, .{});
-        append_function(list, file, "makefile",         "makefile",  66, 120,  25, .{});
-        append_function(list, file, "configure",        "configure", 66, 120,  25, .{});
+        // Gradle, JVM-based
+        append_function(list, file, &gradle,
+            .{"build.gradle"}, "gradle", 2, 48, 58, .{.sort = 400});
+
+        // Maven, JVM-based
+        append_function(list, file, &maven,
+            .{"pom.xml"}, "maven", 176, 114, 25, .{.sort = 500});
+
+        // Rust
+        append_function(list, file, &cargo,
+            .{"Cargo.toml"}, "cargo", 222, 165, 132, .{.sort = 600});
+
+        // PHP
+        append_function(list, file, &composer,
+            .{"composer.json"}, "composer", 79, 93, 149, .{.sort = 700});
+
+        // NodeJS
+        append_function(list, file, &npm,
+            .{"package.json"}, "npm", 202, 187, 75, .{.sort = 800});
+
+        // TypeScript
+        append_function(list, file, &typescript,
+            .{"tsconfig.json"}, "typescript", 49, 120, 198, .{.sort = 900});
+
+        // D
+        append_function(list, file, &dub,
+            .{"dub.json", "dub.sdl"}, "dub", 176, 57, 49, .{.sort = 1000});
+
+        // Zig
+        append_function(list, file, &zig,
+            .{"build.zig"}, "zig", 247, 164, 29, .{.sort = 1100});
+
+        // Ninja
+        append_function(list, file, &ninja,
+            .{"build.ninja"}, "ninja", 44, 44, 44, .{.sort = 120});
+
+        // Docker
+        append_function(list, file, &docker,
+            .{"Dockerfile"},         "docker",  13, 183, 237, .{.sort = 20});
+        append_function(list, file, &docker_compose,
+            .{"docker-compose.yml"}, "compose", 13, 183, 237, .{.sort = 21});
+
+        // Python and Python PIP
+        append_function(list, file, &python,
+            .{"setup.py"},         "python", 53, 114, 165, .{.sort = 1400});
+        append_function(list, file, &pip,
+            .{"requirements.txt"}, "pip",    53, 114, 165, .{.sort = 1401});
+
+        // Ruby
+        append_function(list, file, &rubygems,
+            .{"Gemfile"},  "rubygems", 112, 21, 22, .{.sort = 1500});
+        append_function(list, file, &rake,
+            .{"Rakefile"}, "rake",     112, 21, 22, .{.sort = 1501});
+
+        // makefile, configure
+        append_function(list, file, &makefile,
+            .{"Makefile", "makefile"}, "makefile",  66, 120, 25, .{.sort = 190});
+        append_function(list, file, &configure,
+            .{"configure"},            "configure", 66, 120, 25, .{.sort = 191});
+
+        // MSBuild
+        append_function(list, file, &msbuild,
+            .{".sln"}, "msbuild", 56, 145, 223, .{.ends_with = true, .sort = 110});
+
+        // Go
+        append_function(list, file, &go,
+            .{"go.mod", "go.sum", "go.work"}, "go", 0, 125, 156, .{.sort = 1800});
+
+        // Elixir
+        append_function(list, file, &elixir,
+            .{"mix.exs"}, "elixir", 85, 55, 100, .{.sort = 1900});
     }
 }
 
@@ -116,15 +239,18 @@ pub fn detect_build_systems(path: []const u8) []const u8 {
     var build_systems = String.init(std.heap.page_allocator);
 
     // push everything into a list to join it with a separator later
-    var formatted_list = std.ArrayList([]const u8).init(std.heap.page_allocator);
+    var formatted_list = EntryList.init(std.heap.page_allocator);
     defer formatted_list.deinit();
 
     // execute builder and push all entries which have a match
     build_list(&formatted_list, &files, append_if_match);
 
+    // sort the list according to the sorting hints
+    std.sort.sort(Entry, formatted_list.items, {}, Entry.lessThan);
+
     // join list together with a separator
     for (formatted_list.items) |item, i| {
-        build_systems.concat(item) catch {};
+        build_systems.concat(item.value) catch {};
         if (i < formatted_list.items.len - 1) {
             build_systems.concat("❘") catch {};
         }
@@ -138,7 +264,7 @@ pub fn test_build_system_colors() []const u8 {
     var build_systems = String.init(std.heap.page_allocator);
 
     // push everything into a list to join it with a separator later
-    var formatted_list = std.ArrayList([]const u8).init(std.heap.page_allocator);
+    var formatted_list = EntryList.init(std.heap.page_allocator);
     defer formatted_list.deinit();
 
     // create list with one entry; used to trigger the iteration in build_list
@@ -149,9 +275,12 @@ pub fn test_build_system_colors() []const u8 {
     // execute builder and push all entries into the list, regardless of their existence on the filesystem
     build_list(&formatted_list, &files.items, append_regardless);
 
+    // sort the list according to the sorting hints
+    std.sort.sort(Entry, formatted_list.items, {}, Entry.lessThan);
+
     // join list together with a separator
     for (formatted_list.items) |item, i| {
-        build_systems.concat(item) catch {};
+        build_systems.concat(item.value) catch {};
         if (i < formatted_list.items.len - 1) {
             build_systems.concat("❘") catch {};
         }
