@@ -65,6 +65,9 @@ pub fn main() u8 {
         if (std.mem.eql(u8, shell_init_source, "fish")) {
             print("{s}", .{shell.fish});
             return 0;
+        } else if (std.mem.eql(u8, shell_init_source, "bash")) {
+            print("{s}", .{shell.bash});
+            return 0;
         } else {
             return 1;
         }
