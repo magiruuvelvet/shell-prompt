@@ -1,6 +1,42 @@
+## add this to your config.fish file ###########################
+#set -g SHELL_PROMPT_BINARY "shell-prompt"
+#set -g SHELL_PROMPT_HOSTNAME_COLOR "r;g;b"
+#"$SHELL_PROMPT_BINARY" --shell-init-source fish | source
+## END #########################################################
+
+# disable the prompt pwd limit / truncation
+# (this ensures that the builtin `pwd` command always prints the entire working directory)
+set -g fish_prompt_pwd_dir_length 0
+
+# initialize static default options
+set -e __fish_shell_prompt_default_options
+set -g __fish_shell_prompt_default_options
+
+# set custom hostname color when present
+if [ -n "$SHELL_PROMPT_HOSTNAME_COLOR" ]
+    set -a __fish_shell_prompt_default_options "--hostname-color=$SHELL_PROMPT_HOSTNAME_COLOR"
+end
+
 # checks if a given string starts with another string
 function __shell_prompt_string_starts_with
     string match -i --regex '^'"$argv[2]"'.*$' "$argv[1]" >/dev/null 2>&1
+end
+
+# additional shell prompt arguments setup
+function __fish_shell_prompt_options_setup
+    set -e __fish_shell_prompt_options
+    set -g __fish_shell_prompt_options
+end
+
+# print the actual shell prompt
+function __fish_shell_prompt_launch
+    printf "\n"
+    "$SHELL_PROMPT_BINARY" \
+        --columns=$COLUMNS \
+        --lines=$LINES \
+        --last-exit-status=$last_status \
+        $__fish_shell_prompt_default_options \
+        $__fish_shell_prompt_options
 end
 
 # git directory features
@@ -111,3 +147,4 @@ function __git_prompt_url_visit
         echo "エーラー: git repository has no remote '$remote'" >&2
     end
 end
+
