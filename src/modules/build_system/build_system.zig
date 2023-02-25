@@ -114,21 +114,23 @@ fn build_list(
     var cmake = false;
     var waf = false;
     var meson = false;
+    var ninja = false;
+    var build2 = false;
+    var boost = false;
     var gradle = false;
     var maven = false;
     var cargo = false;
     var composer = false;
     var npm = false;
+    var deno = false;
     var typescript = false;
     var dub = false;
     var zig = false;
-    var ninja = false;
+    var crystal = false;
     var docker = false;
     var docker_compose = false;
     var python = false;
-    var pip = false;
-    var rubygems = false;
-    var rake = false;
+    var ruby = false;
     var makefile = false;
     var configure = false;
     var msbuild = false;
@@ -148,6 +150,18 @@ fn build_list(
         // meson, universal build system
         append_function(list, file, &meson,
             .{"meson.build"}, "meson", 57, 32, 124, .{.sort = 130});
+
+        // Ninja
+        append_function(list, file, &ninja,
+            .{"build.ninja"}, "ninja", 44, 44, 44, .{.sort = 120});
+
+        // build2, C++ build system (https://build2.org/)
+        append_function(list, file, &build2,
+            .{"buildfile"}, "build2", 44, 44, 44, .{.sort = 121});
+
+        // boost build system
+        append_function(list, file, &boost,
+            .{"Jamroot", "Jamfile"}, "boost", 44, 44, 44, .{.sort = 122});
 
         // Gradle, JVM-based
         append_function(list, file, &gradle,
@@ -169,6 +183,10 @@ fn build_list(
         append_function(list, file, &npm,
             .{"package.json"}, "npm", 202, 187, 75, .{.sort = 800});
 
+        // Deno
+        append_function(list, file, &deno,
+            .{"deno.json", "deno.jsonc"}, "deno", 18, 18, 75, .{.sort = 810});
+
         // TypeScript
         append_function(list, file, &typescript,
             .{"tsconfig.json"}, "typescript", 49, 120, 198, .{.sort = 900});
@@ -181,9 +199,9 @@ fn build_list(
         append_function(list, file, &zig,
             .{"build.zig"}, "zig", 247, 164, 29, .{.sort = 1100});
 
-        // Ninja
-        append_function(list, file, &ninja,
-            .{"build.ninja"}, "ninja", 44, 44, 44, .{.sort = 120});
+        // Crystal
+        append_function(list, file, &crystal,
+            .{"shard.yml"}, "crystal", 0, 1, 0, .{.sort = 1150});
 
         // Docker
         append_function(list, file, &docker,
@@ -191,17 +209,13 @@ fn build_list(
         append_function(list, file, &docker_compose,
             .{"docker-compose.yml"}, "compose", 13, 183, 237, .{.sort = 21});
 
-        // Python and Python PIP
+        // Python
         append_function(list, file, &python,
-            .{"setup.py"},         "python", 53, 114, 165, .{.sort = 1400});
-        append_function(list, file, &pip,
-            .{"requirements.txt"}, "pip",    53, 114, 165, .{.sort = 1401});
+            .{"setup.py", "requirements.txt"}, "python", 53, 114, 165, .{.sort = 1400});
 
         // Ruby
-        append_function(list, file, &rubygems,
-            .{"Gemfile"},  "rubygems", 112, 21, 22, .{.sort = 1500});
-        append_function(list, file, &rake,
-            .{"Rakefile"}, "rake",     112, 21, 22, .{.sort = 1501});
+        append_function(list, file, &ruby,
+            .{"Gemfile", "Rakefile"}, "ruby", 112, 21, 22, .{.sort = 1500});
 
         // makefile, configure
         append_function(list, file, &makefile,
