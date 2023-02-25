@@ -147,4 +147,3 @@ function __git_prompt_url_visit
         echo "エーラー: git repository has no remote '$remote'" >&2
     end
 end
-
